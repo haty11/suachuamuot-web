@@ -159,6 +159,12 @@ textarea.inp{padding:8px 12px;min-height:72px;width:100%;resize:vertical}
 .gbox{background:var(--surface);color:var(--ink);border-radius:20px;padding:28px;max-width:440px;width:100%;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow)}
 .gbox .gbrand{font:800 26px/1.1 var(--display);color:var(--accent)}
 .gbox p{margin:0}
+.sug{position:absolute;top:100%;left:0;right:0;z-index:5;margin-top:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+.sug button{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;border:0;background:none;padding:9px 12px;font:inherit;color:var(--ink);cursor:pointer}
+.sug button+button{border-top:1px solid var(--line)}
+.sug button:hover,.sug button:focus-visible{background:var(--sunk)}
+.sug small{color:var(--muted);font-size:12.5px}
+.mapf{display:block;width:100%;height:210px;border:0;border-radius:12px;background:var(--sunk)}
 #gate.ld{background:var(--side)}
 #gate.ld .gbox{background:transparent;box-shadow:none;align-items:center;text-align:center}
 #gate.ld .gbox .gbrand,#gate.ld .gbox .sub{display:none}
@@ -187,7 +193,7 @@ textarea.inp{padding:8px 12px;min-height:72px;width:100%;resize:vertical}
 <div id="drawer" hidden></div>
 <div id="gate" hidden></div>
 <div id="toast" class="toast" hidden></div>
-<script src="config.js?v=1"></script><script>/* ===== Dữ liệu & mô hình (khớp các bảng Google Sheet) ===== */
+<script src="config.js?v=1"></script><script src="/maps.js?v=1"></script><script>/* ===== Dữ liệu & mô hình (khớp các bảng Google Sheet) ===== */
 var VI = [
   { id: 'khong-duong', ten: 'Original không đường', nhom: 'Original', cpv: 0 },
   { id: 'it-duong', ten: 'Original ít đường', nhom: 'Original', cpv: 1000 },
@@ -630,7 +636,27 @@ function closeDrawer() { $('#drawer').hidden = true; $('#drawer').innerHTML = ''
 function stamp() { var d = new Date(); return iso(d) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
 
 /* Tạo đơn thủ công */
-var NEWO = null;
+var NEWO = null, MAPS = 0, SUGS = [], _sugT = 0;
+function mapsOn() { return !!(window.MMMMaps && MMMMaps.on()); }
+function addrBlock() {
+  if (LIVE && !MAPS && window.MMMMaps) { MAPS = 1; MMMMaps.init(API).then(function (c) { MAPS = c ? 2 : 3; if (NEWO && !$('#drawer').hidden && $('#n-dc') && document.activeElement !== $('#n-dc')) newOrderDrawer(); }); }
+  var g = NEWO.geo, on = mapsOn(), inZ = g && g.km <= CFG.banKinh;
+  return '<div class="fld full" style="position:relative"><label for="n-dc">Địa chỉ</label><input class="inp" id="n-dc" data-n="diachi" autocomplete="off" value="' + esc(NEWO.diachi) + '" placeholder="' + (on ? 'Gõ số nhà, tên đường rồi chọn trong gợi ý' : 'Số nhà, đường, phường') + '"><div id="n-sug" class="sug" hidden></div>' +
+    (g ? '<span class="note">' + (g.ward ? esc(g.ward) + ' · ' : '') + String(g.km).replace('.', ',') + ' km ' + (g.road ? 'đường xe máy' : 'ước tính') + (g.phut ? ' · khoảng ' + g.phut + ' phút' : '') + ' · <b class="' + (inZ ? 'pos' : 'neg') + '">' + (inZ ? 'trong vùng ' + CFG.banKinh + 'km' : 'ngoài ' + CFG.banKinh + 'km, khách trả ship') + '</b></span>' : (MAPS === 3 ? '<span class="note">Chưa bật Google Maps: dán mã vào Sheet › Cài đặt › "Mã Google Maps (API key)".</span>' : '')) + '</div>' +
+    '<div class="fld"><label for="n-km">Khoảng cách (km)</label><input class="inp" id="n-km" data-n="km" inputmode="decimal" value="' + esc(NEWO.km) + '" placeholder="' + (on ? 'Tự điền khi chọn địa chỉ' : 'Nhập tay') + '"></div>' +
+    (g && on ? '<div class="fld full"><iframe class="mapf" title="Đường từ shop đến khách" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="' + esc(MMMMaps.embed(g.ll)) + '"></iframe><a class="note" href="' + esc(MMMMaps.link(g.ll)) + '" target="_blank" rel="noopener">Mở đường đi trên Google Maps ↗</a></div>' : '');
+}
+function sugLater(q) {
+  clearTimeout(_sugT); var box = $('#n-sug'); if (!box) return;
+  if (!mapsOn() || q.trim().length < 3) { box.hidden = true; return; }
+  _sugT = setTimeout(function () {
+    MMMMaps.suggest(q).then(function (list) {
+      SUGS = list; box = $('#n-sug'); if (!box || $('#n-dc').value !== q) return;
+      box.innerHTML = list.map(function (s, i) { return '<button type="button" data-act="sug" data-i="' + i + '"><b>' + esc(s.main) + '</b><small>' + esc(s.sub) + (s.km != null ? ' · ' + String(s.km).replace('.', ',') + ' km' : '') + '</small></button>'; }).join('');
+      box.hidden = !list.length;
+    }).catch(function () { box.hidden = true; });
+  }, 250);
+}
 function newOrderDrawer() {
   if (!NEWO) NEWO = { ten: '', sdt: '', nhan: 'Giao', diachi: '', km: '', ngay: iso(addD(TODAY, 1)), slot: SLOTS[0], kenh: 'Zalo', lines: [{ vi: (VI[1] || VI[0]).id, cot: COT[0].id, size: 250, sl: 1 }], err: '' };
   var t = { hang: 0, von: 0 };
@@ -643,7 +669,7 @@ function newOrderDrawer() {
     '<div class="fld"><label for="n-sdt">SĐT</label><input class="inp" id="n-sdt" data-n="sdt" inputmode="tel" value="' + esc(NEWO.sdt) + '"></div>' +
     '<div class="fld"><label for="n-nhan">Nhận hàng</label><select class="inp" id="n-nhan" data-n="nhan">' + opt([['Giao', 'Giao tận nơi'], ['Lấy', 'Tự đến lấy']], NEWO.nhan) + '</select></div>' +
     '<div class="fld"><label for="n-kenh">Kênh</label><select class="inp" id="n-kenh" data-n="kenh">' + opt([['Zalo', 'Zalo'], ['Điện thoại', 'Điện thoại'], ['Trực tiếp', 'Trực tiếp'], ['Web', 'Web']], NEWO.kenh) + '</select></div>' +
-    (NEWO.nhan === 'Giao' ? '<div class="fld full"><label for="n-dc">Địa chỉ</label><input class="inp" id="n-dc" data-n="diachi" value="' + esc(NEWO.diachi) + '"></div><div class="fld"><label for="n-km">Khoảng cách (km)</label><input class="inp" id="n-km" data-n="km" inputmode="decimal" value="' + esc(NEWO.km) + '" placeholder="Web thật tự tính từ Google Maps"></div>' : '') +
+    (NEWO.nhan === 'Giao' ? addrBlock() : '') +
     '<div class="fld"><label for="n-ngay">Ngày nhận</label><select class="inp" id="n-ngay" data-n="ngay">' + opt(days, NEWO.ngay) + '</select></div>' +
     '<div class="fld"><label for="n-slot">Khung giờ</label><select class="inp" id="n-slot" data-n="slot">' + opt(SLOTS.map(function (s) { return [s, s]; }), NEWO.slot) + '</select></div>' +
     '</div></div><div class="card"><div class="toolbar"><h3>Hũ</h3><button class="btn sm" type="button" data-act="nline">+ Thêm hũ</button></div>' +
@@ -891,6 +917,7 @@ function vSet() {
 
 /* ===== Sự kiện ===== */
 document.addEventListener('click', function (e) {
+  var sb = $('#n-sug'); if (sb && !sb.hidden && !e.target.closest('#n-sug,#n-dc')) sb.hidden = true;
   var t = e.target.closest('[data-act],[data-of],[data-open],[data-pday],[data-kho],[data-kh],[data-month],[data-tr],[data-act2],[data-cust],[data-goto]');
   if (!t) return;
   if (t.dataset.goto !== undefined && t.dataset.goto) { if (t.getAttribute('href') === '#don-hang') UI.of = t.dataset.goto; if (t.getAttribute('href') === '#kho') UI.kho = t.dataset.goto; }
@@ -912,6 +939,7 @@ document.addEventListener('click', function (e) {
   if (a === 'nline') { NEWO.lines.push({ vi: VI[0].id, cot: COT[0].id, size: 100, sl: 1 }); newOrderDrawer(); return; }
   if (a === 'dline') { NEWO.lines.splice(+t.dataset.i, 1); newOrderDrawer(); return; }
   if (a === 'create') { createOrder(); return; }
+  if (a === 'sug' && NEWO) { var sg = SUGS[+t.dataset.i], bx = $('#n-sug'); if (!sg) return; bx.innerHTML = '<div class="note" style="padding:10px 12px">Đang tính đường đi…</div>'; MMMMaps.pick(sg).then(function (g) { NEWO.diachi = g.addr; NEWO.phuong = g.ward; NEWO.km = String(g.km).replace('.', ','); NEWO.geo = g; newOrderDrawer(); }).catch(function () { bx.hidden = true; toast('Không lấy được vị trí, sếp nhập km tay nhé'); }); return; }
   if (a === 'paid' && o) { o.thu = o.tong; o.pay = 'Đã thanh toán'; o.thuLuc = stamp(); if (o.xl === 'Mới') o.xl = 'Đang làm'; sync('orderPay', { ma: o.ma }); o.log.push({ t: stamp(), v: 'Sếp xác nhận đã nhận ' + money(o.tong) + ', chuyển Đang làm' }); save(); render(); orderDrawer(o.ma, 'msg:nhan_tien'); toast('Đã xác nhận thanh toán ' + o.ma); return; }
   if (a === 'next' && o) { var nx = nextXl(o); o.xl = nx; sync('orderStatus', { ma: o.ma, xl: nx }); o.log.push({ t: stamp(), v: 'Chuyển sang ' + nx }); save(); render(); orderDrawer(o.ma, nx === 'Đang giao' ? 'msg:dang_giao' : nx === 'Chờ lấy' ? 'msg:cho_lay' : null); toast(o.ma + ': ' + nx); return; }
   if (a === 'msg' && o) { orderDrawer(o.ma, 'msg:' + t.dataset.k); return; }
@@ -930,6 +958,7 @@ function selectEl(el) { var r = document.createRange(); r.selectNodeContents(el)
 document.addEventListener('input', function (e) {
   var t = e.target;
   if (t.id === 'q') { UI.q = t.value; var pos = t.selectionStart; render(); var q = $('#q'); q.focus(); q.setSelectionRange(pos, pos); return; }
+  if (t.id === 'n-dc' && NEWO) { NEWO.diachi = t.value; NEWO.geo = null; NEWO.phuong = ''; sugLater(t.value); return; }
   if (t.dataset.n && NEWO) { NEWO[t.dataset.n] = t.value; if (t.tagName === 'SELECT') newOrderDrawer(); return; }
   if (t.dataset.l !== undefined && NEWO) { var l = NEWO.lines[+t.dataset.l]; l[t.dataset.f] = t.dataset.f === 'size' || t.dataset.f === 'sl' ? Math.max(1, +t.value || 1) : t.value; if (t.tagName === 'SELECT') newOrderDrawer(); return; }
   if (t.id === 'shiptt') return;
@@ -952,11 +981,11 @@ function createOrder() {
   if (n.nhan === 'Giao' && !n.diachi.trim()) { n.err = 'Cần địa chỉ giao hàng.'; newOrderDrawer(); return; }
   var max = S.orders.reduce(function (m, o) { return Math.max(m, +o.ma.slice(3)); }, 1000);
   var o = { ma: 'MMM' + (max + 1), tao: iso(new Date()) + 'T' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0'), kenh: n.kenh, nguon: n.kenh.toLowerCase(), ten: n.ten.trim(), sdt: ph,
-    nhan: n.nhan, diachi: n.nhan === 'Giao' ? n.diachi.trim() : 'Lấy tại 12 Nguyên Hồng', km: n.nhan === 'Giao' ? (parseFloat(String(n.km).replace(',', '.')) || 0) : 0, ngay: n.ngay, slot: n.slot,
+    nhan: n.nhan, diachi: n.nhan === 'Giao' ? n.diachi.trim() : 'Lấy tại 12 Nguyên Hồng', phuong: n.nhan === 'Giao' ? (n.phuong || '') : '', km: n.nhan === 'Giao' ? (parseFloat(String(n.km).replace(',', '.')) || 0) : 0, ngay: n.ngay, slot: n.slot,
     items: n.lines.map(function (l) { return mkLine(l.vi, l.cot, +l.size, +l.sl); }), giam: 0, pttt: 'Chuyển khoản', ghichu: '', ghichuShop: '', pay: 'Chưa thanh toán', xl: 'Mới', thu: 0, log: [{ t: stamp(), v: 'Sếp tạo đơn (' + n.kenh + ')' }] };
   orderTotals(o);
   if (LIVE) { var btn = $('[data-act="create"]'); if (btn) { btn.disabled = true; btn.textContent = 'Đang lưu vào Sheet…'; }
-    sync('orderCreate', { order: { kenh: o.kenh, nguon: o.nguon, ten: o.ten, sdt: o.sdt, nhan: o.nhan, diachi: o.diachi, km: o.km, ngay: o.ngay, slot: o.slot, tienHang: o.hang + o.giam, giam: o.giam, ship: o.ship, tong: o.tong, shipTra: o.shipTra, ghichu: '', items: o.items.map(function (x) { return { vi: viOf(x.vi).ten, cot: cotOf(x.cot).ten, size: x.size, sl: x.sl, gia: x.gia, von: x.von, combo: x.combo, note: x.note }; }) } })
+    sync('orderCreate', { order: { kenh: o.kenh, nguon: o.nguon, ten: o.ten, sdt: o.sdt, nhan: o.nhan, diachi: o.diachi, phuong: o.phuong, km: o.km, ngay: o.ngay, slot: o.slot, tienHang: o.hang + o.giam, giam: o.giam, ship: o.ship, tong: o.tong, shipTra: o.shipTra, ghichu: '', items: o.items.map(function (x) { return { vi: viOf(x.vi).ten, cot: cotOf(x.cot).ten, size: x.size, sl: x.sl, gia: x.gia, von: x.von, combo: x.combo, note: x.note }; }) } })
       .then(function (r) { o.ma = r.ma; o.tao = r.tao || o.tao; S.orders.push(o); NEWO = null; closeDrawer(); UI.of = 'can-xu-ly'; location.hash = 'don-hang'; render(); orderDrawer(o.ma); toast('Đã tạo ' + o.ma + ' và lưu vào Sheet'); });
     return; }
   S.orders.push(o); save(); NEWO = null; closeDrawer(); UI.of = 'can-xu-ly'; location.hash = 'don-hang'; render(); orderDrawer(o.ma); toast('Đã tạo ' + o.ma);

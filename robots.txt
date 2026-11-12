@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /gio-hang/
+Disallow: /dat-hang/
+Disallow: /thanh-toan/
+Sitemap: https://suachuamuot.com/sitemap.xml
