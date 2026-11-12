@@ -7,17 +7,18 @@
   var PAGE = document.body.dataset.page || '';
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return [].slice.call((r || document).querySelectorAll(s)); };
-  var FL = {
-    'Original không đường': { slug: 'khong-duong', ngan: 'Mộc', full: 'Mộc', bg: '#FFFFFF', ingr: 'không thêm đường', ngot: 'Không thêm đường' },
-    'Original ít đường': { slug: 'it-duong', ngan: 'Mộc ít ngọt', full: 'Mộc ít ngọt', bg: '#F4E8DA', ingr: 'một chút đường', ngot: 'Ít đường' },
-    'Trà Earl Grey': { slug: 'earl-grey', ngan: 'Trà bá tước', full: 'Trà bá tước', bg: '#E4DEEA', ingr: 'trà bá tước (Earl Grey)' },
-    'Mè đen': { slug: 'me-den', ngan: 'Mè đen', bg: '#E4E0DC', ingr: 'bơ mè đen' },
-    'Nhãn sấy': { slug: 'nhan-say', ngan: 'Nhãn sấy', bg: '#EEDDC0', ingr: 'nhãn sấy' },
-    'Dâu sấy': { slug: 'dau-say', ngan: 'Dâu sấy', bg: '#F5D3D8', ingr: 'dâu sấy' }
-  };
+  /* Mỗi vị nhận ra bằng "Mã vị" cố định (cột E tab Menu & giá) – tên, mô tả đọc từ Sheet nên đổi tên không lệch */
+  var FL = { 'khong-duong': '#FFFFFF', 'it-duong': '#F4E8DA', 'earl-grey': '#E4DEEA', 'me-den': '#E4E0DC', 'nhan-say': '#EEDDC0', 'dau-say': '#F5D3D8' };
+  var ALIAS = { 'original không đường': 'khong-duong', 'mộc': 'khong-duong', 'original ít đường': 'it-duong', 'mộc ít ngọt': 'it-duong', 'trà earl grey': 'earl-grey', 'trà earl grey anh quốc': 'earl-grey', 'trà bá tước': 'earl-grey', 'mè đen': 'me-den', 'nhãn sấy': 'nhan-say', 'dâu sấy': 'dau-say' };
   function slugify(t) { return String(t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
-  function fl(ten) { return FL[ten] || { slug: slugify(ten), ngan: ten, bg: '#F4E8DA', ingr: ten.toLowerCase() }; }
-  function img(ten) { var f = FL[ten]; return f ? '/img/' + f.slug + '.webp' : '/logo.webp'; }
+  function normD(d) { (d.vi || []).forEach(function (v) { v.ma = v.ma || ALIAS[String(v.ten).toLowerCase()] || slugify(v.ten); }); return d; }
+  /** mã vị từ mã hoặc tên (tên mới trong Sheet, tên cũ trong giỏ đã lưu) */
+  function maOf(x) {
+    x = String(x || ''); var v = (D.vi || []).filter(function (y) { return y.ma === x || y.ten === x; })[0];
+    return v ? v.ma : ALIAS[x.toLowerCase()] || (FL[x] ? x : slugify(x));
+  }
+  function fl(x) { var m = maOf(x), v = viOf(m) || {}, t = v.ten || x; return { slug: m, ngan: t, full: t, bg: FL[m] || '#F4E8DA' }; }
+  function img(x) { var m = maOf(x); return FL[m] ? '/img/' + m + '.webp' : '/logo.webp'; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function fmt(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + 'đ'; }
   function k(n) { return Math.round(n / 1000) + 'k'; }
@@ -35,7 +36,7 @@
 
   /* ---------- giá ---------- */
   var COTS = ['Thanh trùng', 'A2'], SIZES = [100, 250, 450];
-  function viOf(ten) { return D.vi.filter(function (v) { return v.ten === ten; })[0]; }
+  function viOf(x) { var m = maOf(x); return D.vi.filter(function (v) { return v.ma === m; })[0]; }
   function isMix(ten) { var v = viOf(ten); return !v || v.nhom !== 'Original'; }
   function unit(ten, cot, size) { return ((D.gia[cot] || {})[size] || 0) + (isMix(ten) ? D.mix : 0); }
   function cbKey(t) { t = String(t || '').toLowerCase(); return /thử/.test(t) ? 'thu' : /đủ/.test(t) ? 'du' : /kho[eẻ]|khỏe/.test(t) ? 'khoe' : t; }
@@ -47,7 +48,7 @@
     if (it.t !== 'combo') { le = unit(it.vi, it.cot, it.size); return { le: le * it.sl, gia: le * it.sl, free: false }; }
     c = cb(it.combo);
     if (/thử/i.test(it.combo)) { (it.vis || []).forEach(function (v) { le += unit(v, it.cot, 100); }); gia = it.cot === 'A2' ? c.giaA2 : c.giaTT; }
-    else if (/đủ/i.test(it.combo)) { vis().forEach(function (v) { le += unit(v.ten, it.cot, 100); }); gia = it.cot === 'A2' ? c.giaA2 : c.giaTT; }
+    else if (/đủ/i.test(it.combo)) { vis().forEach(function (v) { le += unit(v.ma, it.cot, 100); }); gia = it.cot === 'A2' ? c.giaA2 : c.giaTT; }
     else { (it.hu || []).forEach(function (h) { le += unit(h.vi, h.cot, h.size); }); gia = le - (c.giam || 0); }
     return { le: le * it.sl, gia: Math.min(le, gia) * it.sl, free: !!c.freeship };
   }
@@ -55,7 +56,7 @@
   /* ---------- giỏ hàng ---------- */
   function cart() { return ls('mmm-cart') || []; }
   function saveCart(c) { ls('mmm-cart', c); badge(); }
-  function key(it) { return JSON.stringify([it.t, it.vi, it.cot, it.size, it.note || '', it.combo, it.vis, it.hu]); }
+  function key(it) { return JSON.stringify([it.t, it.vi && maOf(it.vi), it.cot, it.size, it.note || '', it.combo, (it.vis || []).map(maOf), (it.hu || []).map(function (h) { return [maOf(h.vi), h.cot, h.size]; })]); }
   function addCart(it) {
     var c = cart(), same = c.filter(function (x) { return key(x) === key(it); })[0];
     if (same) same.sl += it.sl; else c.push(it);
@@ -78,19 +79,20 @@
     if (/thử/i.test(it.combo)) return it.cot + ' · 100g: ' + (it.vis || []).map(function (v) { return fl(v).ngan; }).join(', ');
     return (it.hu || []).map(function (h) { return h.size + 'g ' + fl(h.vi).ngan + ' (' + (h.cot === 'A2' ? 'A2' : h.cot.toLowerCase()) + ')'; }).join(' + ');
   }
-  function itemImg(it) { return img(it.vi || (it.vis && it.vis[0]) || (it.hu && it.hu[0].vi) || 'Original ít đường'); }
+  function itemImg(it) { return img(it.vi || (it.vis && it.vis[0]) || (it.hu && it.hu[0].vi) || 'it-duong'); }
 
   /* ---------- tải dữ liệu Sheet ---------- */
   var applyFns = [];
   function onData(fn) { applyFns.push(fn); fn(); }
   function apply() { applyFns.forEach(function (f) { try { f(); } catch (e) { console.error(e); } }); badge(); }
+  normD(D);
   (function loadLive() {
     var c = ls('mmm-data');
-    if (c && c.d && Date.now() - c.t < 6 * 3600e3) D = c.d;
+    if (c && c.d && c.d.vi && Date.now() - c.t < 6 * 3600e3) D = normD(c.d);
     if (!API) return;
     if (c && Date.now() - c.t < 120e3) return;
     fetch(API + '?action=data').then(function (r) { return r.json(); }).then(function (j) {
-      if (!j || !j.ok) return; delete j.ok; delete j.now; D = j; ls('mmm-data', { t: Date.now(), d: j }); apply(); analytics();
+      if (!j || !j.ok) return; delete j.ok; delete j.now; D = normD(j); ls('mmm-data', { t: Date.now(), d: j }); apply(); analytics();
     }).catch(function () {});
   })();
 
@@ -112,6 +114,13 @@
   }
   var ut = new URLSearchParams(location.search).get('utm_source'); if (ut) ls('mmm-utm', ut);
 
+  /* ---------- tên, mô tả, thành phần… đọc thẳng từ Sheet (ô có data-vt="mã|trường") ---------- */
+  onData(function () {
+    $$('[data-vt]').forEach(function (e) { var p = e.dataset.vt.split('|'), v = viOf(p[0]); if (v && v[p[1]]) e.textContent = v[p[1]]; });
+    $$('[data-valt]').forEach(function (e) { var v = viOf(e.dataset.valt); if (v) e.alt = 'Sữa chua Hy Lạp vị ' + v.ten; });
+    var pm = document.body.dataset.ma, pv = pm && viOf(pm); if (pv) document.title = 'Sữa chua Hy Lạp vị ' + pv.ten + ' | Mướt Mườn Mượt';
+  });
+
   /* ---------- giá trên thẻ vị, bảng giá ---------- */
   onData(function () {
     $$('[data-from]').forEach(function (e) { var t = e.dataset.from; e.textContent = fmt(unit(t, 'Thanh trùng', 100)); });
@@ -128,12 +137,12 @@
 
   /* ---------- bộ chọn hũ (trang chủ + trang vị) ---------- */
   $$('[data-calc]').forEach(function (root) {
-    var st = { vi: root.dataset.vi || 'Trà Earl Grey', cot: 'Thanh trùng', size: 250, sl: 1 };
+    var st = { vi: root.dataset.vi || 'earl-grey', cot: 'Thanh trùng', size: 250, sl: 1 };
     var pre = ls('mmm-pick'); if (pre && !root.dataset.fixed) { st.vi = pre.vi || st.vi; }
     function draw() {
-      if (!viOf(st.vi)) st.vi = (vis()[2] || vis()[0]).ten;
+      st.vi = maOf(st.vi); if (!viOf(st.vi)) st.vi = (vis()[2] || vis()[0]).ma;
       var u = unit(st.vi, st.cot, st.size), tot = u * st.sl, f = fl(st.vi);
-      $$('[data-pick]', root).forEach(function (b) { var p = b.dataset.pick.split(':'), on = String(st[p[0]]) === p[1]; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+      $$('[data-pick]', root).forEach(function (b) { var p = b.dataset.pick.split(':'), on = p[0] === 'vi' ? maOf(p[1]) === st.vi : String(st[p[0]]) === p[1]; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
       SIZES.forEach(function (s) { set('p' + s, fmt(unit(st.vi, st.cot, s)), root); });
       set('a2add', '+' + k(D.gia.A2[st.size] - D.gia['Thanh trùng'][st.size]), root);
       set('a2p', fmt(unit(st.vi, 'A2', st.size)), root);
@@ -180,8 +189,8 @@
 
   /* ---------- combo ---------- */
   $$('[data-combo]').forEach(function (root) {
-    var name = root.dataset.combo, st = { cot: 'Thanh trùng', set: 0, h250: { vi: 'Dâu sấy', cot: 'Thanh trùng' }, h450: { vi: 'Original ít đường', cot: 'Thanh trùng' } };
-    var SETS = [['Original ít đường', 'Dâu sấy', 'Trà Earl Grey'], ['Original ít đường', 'Mè đen', 'Nhãn sấy']];
+    var name = root.dataset.combo, st = { cot: 'Thanh trùng', set: 0, h250: { vi: 'dau-say', cot: 'Thanh trùng' }, h450: { vi: 'it-duong', cot: 'Thanh trùng' } };
+    var SETS = [['it-duong', 'dau-say', 'earl-grey'], ['it-duong', 'me-den', 'nhan-say']];
     function item() {
       if (/thử/i.test(name)) return { t: 'combo', combo: name, cot: st.cot, vis: SETS[st.set], sl: 1 };
       if (/đủ/i.test(name)) return { t: 'combo', combo: name, cot: st.cot, sl: 1 };
@@ -193,7 +202,7 @@
       var tg = function (b, on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); };
       $$('[data-cot]', root).forEach(function (b) { var g = b.dataset.g || 'cot', cur = g === 'cot' ? st.cot : st[g].cot; tg(b, b.dataset.cot === cur); });
       $$('[data-set]', root).forEach(function (b) { tg(b, +b.dataset.set === st.set); });
-      $$('[data-hv]', root).forEach(function (b) { var g = b.dataset.g; tg(b, st[g].vi === b.dataset.hv); });
+      $$('[data-hv]', root).forEach(function (b) { var g = b.dataset.g; tg(b, maOf(st[g].vi) === maOf(b.dataset.hv)); });
       set('h250', fl(st.h250.vi).ngan, root); set('h450', fl(st.h450.vi).ngan, root);
       set('desc', itemMeta(it), root);
       set('price', fmt(p.gia), root); set('le', fmt(p.le), root); set('save', fmt(p.le - p.gia), root);
@@ -256,9 +265,9 @@
     set('fsratio', fmt(Math.min(t.hang, D.ship.free)) + ' / ' + fmt(D.ship.free));
     $$('[data-o="fsstk"]').forEach(function (e) { e.hidden = !(t.free || need <= 0); });
     var b = $('[data-o="fsbar1"]'); if (b) b.style.width = Math.min(100, (t.free ? 1 : t.hang / D.ship.free) * 100) + '%';
-    var have = {}; c.forEach(function (it) { if (it.vi) have[it.vi] = 1; });
-    var sug = vis().filter(function (v) { return !have[v.ten]; }).slice(0, 3);
-    $('[data-o="sug"]').innerHTML = sug.map(function (v) { var u = unit(v.ten, 'Thanh trùng', 100); return '<div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px"><div class="row" style="flex-wrap:nowrap"><img src="' + img(v.ten) + '" alt="" style="width:52px;height:52px;border-radius:12px;object-fit:cover"><div><b>' + esc(fl(v.ten).ngan) + '</b><div class="note">Thanh trùng · 100g · ' + fmt(u) + '</div></div></div><button type="button" class="btn btn-o btn-sm" data-quick2="' + esc(v.ten) + '">+ Thêm</button></div>'; }).join('');
+    var have = {}; c.forEach(function (it) { if (it.vi) have[maOf(it.vi)] = 1; });
+    var sug = vis().filter(function (v) { return !have[v.ma]; }).slice(0, 3);
+    $('[data-o="sug"]').innerHTML = sug.map(function (v) { var u = unit(v.ma, 'Thanh trùng', 100); return '<div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px"><div class="row" style="flex-wrap:nowrap"><img src="' + img(v.ma) + '" alt="" style="width:52px;height:52px;border-radius:12px;object-fit:cover"><div><b>' + esc(v.ten) + '</b><div class="note">Thanh trùng · 100g · ' + fmt(u) + '</div></div></div><button type="button" class="btn btn-o btn-sm" data-quick2="' + esc(v.ma) + '">+ Thêm</button></div>'; }).join('');
     $('[data-o="sugwrap"]').hidden = !sug.length || t.free || need <= 0;
   }
   if (PAGE === 'cart') document.addEventListener('click', function (e) {
@@ -422,7 +431,7 @@
       if (F('nho').checked) ls('mmm-khach', { ten: ten, sdt: sdt, diachi: F('diachi').value.trim(), ward: wsel.value, mode: st.mode }); else ls('mmm-khach', null);
       var body = { form: 'order', hp: F('website').value, ms: Date.now() - t0, ref: document.referrer ? new URL(document.referrer).hostname : '', data: {
         ten: ten, sdt: sdt, nhan: st.mode, diachi: F('diachi').value.trim(), phuong: st.g ? st.g.ward : w ? w[1] : '', km: km() || 0, ngay: st.day, slot: st.slot, ghichu: F('ghichu').value.trim(), utm: ls('mmm-utm') || '',
-        items: c.map(function (it) { return it.t === 'combo' ? { combo: it.combo, cot: it.cot, vis: it.vis, hu: it.hu, sl: it.sl, note: it.note } : { vi: it.vi, cot: it.cot, size: it.size, sl: it.sl, note: it.note }; }) } };
+        items: c.map(function (it) { var nm = function (x) { return fl(x).ngan; }; return it.t === 'combo' ? { combo: it.combo, cot: it.cot, vis: (it.vis || []).map(nm), hu: it.hu && it.hu.map(function (h) { return { vi: nm(h.vi), cot: h.cot, size: h.size }; }), sl: it.sl, note: it.note } : { vi: nm(it.vi), cot: it.cot, size: it.size, sl: it.sl, note: it.note }; }) } };
       var bs = $$('[data-o="submit"]'), lab = function (on) { bs.forEach(function (b, i) { b.disabled = !on; b.textContent = on ? (i ? 'Thanh toán VietQR' : 'Tiếp tục · Thanh toán VietQR') : 'Đang gửi đơn…'; }); };
       sending = true; lab(false);
       var done = function (j) {
