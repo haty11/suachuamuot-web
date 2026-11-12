@@ -8,9 +8,9 @@
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return [].slice.call((r || document).querySelectorAll(s)); };
   var FL = {
-    'Original không đường': { slug: 'khong-duong', ngan: 'Không đường', bg: '#FFFFFF', ingr: 'không thêm đường', ngot: 'Không thêm đường' },
-    'Original ít đường': { slug: 'it-duong', ngan: 'Ít đường', bg: '#F4E8DA', ingr: 'một chút đường', ngot: 'Ít đường' },
-    'Trà Earl Grey': { slug: 'earl-grey', ngan: 'Trà Earl Grey', full: 'Trà Earl Grey Anh Quốc', bg: '#E4DEEA', ingr: 'trà Earl Grey Anh Quốc' },
+    'Original không đường': { slug: 'khong-duong', ngan: 'Mộc', full: 'Mộc', bg: '#FFFFFF', ingr: 'không thêm đường', ngot: 'Không thêm đường' },
+    'Original ít đường': { slug: 'it-duong', ngan: 'Mộc ít ngọt', full: 'Mộc ít ngọt', bg: '#F4E8DA', ingr: 'một chút đường', ngot: 'Ít đường' },
+    'Trà Earl Grey': { slug: 'earl-grey', ngan: 'Trà bá tước', full: 'Trà bá tước', bg: '#E4DEEA', ingr: 'trà bá tước (Earl Grey)' },
     'Mè đen': { slug: 'me-den', ngan: 'Mè đen', bg: '#E4E0DC', ingr: 'bơ mè đen' },
     'Nhãn sấy': { slug: 'nhan-say', ngan: 'Nhãn sấy', bg: '#EEDDC0', ingr: 'nhãn sấy' },
     'Dâu sấy': { slug: 'dau-say', ngan: 'Dâu sấy', bg: '#F5D3D8', ingr: 'dâu sấy' }
@@ -72,7 +72,7 @@
     if (it.t !== 'combo') return it.cot + ' · ' + it.size + 'g · ' + fmt(unit(it.vi, it.cot, it.size)) + '/hũ';
     if (/đủ/i.test(it.combo)) return it.cot + ' · 6 hũ 100g, đủ 6 vị';
     if (/thử/i.test(it.combo)) return it.cot + ' · 100g: ' + (it.vis || []).map(function (v) { return fl(v).ngan; }).join(', ');
-    return (it.hu || []).map(function (h) { return h.size + 'g ' + fl(h.vi).ngan + ' (' + h.cot.toLowerCase() + ')'; }).join(' + ');
+    return (it.hu || []).map(function (h) { return h.size + 'g ' + fl(h.vi).ngan + ' (' + (h.cot === 'A2' ? 'A2' : h.cot.toLowerCase()) + ')'; }).join(' + ');
   }
   function itemImg(it) { return img(it.vi || (it.vis && it.vis[0]) || (it.hu && it.hu[0].vi) || 'Original ít đường'); }
 
@@ -140,9 +140,10 @@
       $$('[data-o="btn"]', root).forEach(function (b) { b.textContent = 'Thêm vào giỏ · ' + fmt(tot); });
       $$('[data-o="btn"]').forEach(function (b) { if (!root.contains(b) && root.dataset.fixed) b.textContent = 'Thêm vào giỏ · ' + fmt(tot); });
       if (root.dataset.fixed) { var sb = $('.stickybuy'); if (sb) { set('meta', st.cot + ' · ' + st.size + 'g · ' + st.sl + ' hũ', sb); set('total', fmt(tot), sb); } }
-      $$('[data-fimg]', root).forEach(function (e) { e.src = img(st.vi); e.alt = 'Sữa chua Hy Lạp vị ' + st.vi; });
-      var t = totals(), after = t.hang + tot, need = D.ship.free - after;
-      set('fsmsg', t.hang ? (need > 0 ? 'Giỏ đang có ' + fmt(t.hang) + ' · thêm hũ này còn ' + fmt(need) + ' nữa là freeship' : 'Giỏ đang có ' + fmt(t.hang) + ' · thêm hũ này là được freeship 5km') : (need > 0 ? 'Thêm hũ này, đơn còn ' + fmt(need) + ' nữa là freeship' : 'Riêng hũ này đã đủ freeship 5km'), root);
+      $$('[data-fimg]', root).forEach(function (e) { e.src = img(st.vi); e.alt = 'Sữa chua Hy Lạp vị ' + (f.full || f.ngan); });
+      var t = totals(), after = t.hang + tot, need = D.ship.free - after, da = t.hang && (t.free || t.hang >= D.ship.free);
+      if (da) need = 0;
+      set('fsmsg', da ? 'Giỏ đã được freeship 5km' : t.hang ? (need > 0 ? 'Giỏ đang có ' + fmt(t.hang) + ' · thêm hũ này còn ' + fmt(need) + ' nữa là freeship' : 'Giỏ đang có ' + fmt(t.hang) + ' · thêm hũ này là được freeship 5km') : (need > 0 ? 'Thêm hũ này, đơn còn ' + fmt(need) + ' nữa là freeship' : 'Riêng hũ này đã đủ freeship 5km'), root);
       $$('[data-o="fsstk"]', root).forEach(function (e) { e.hidden = need > 0; });
       var b1 = $('[data-o="fsbar1"]', root), b2 = $('[data-o="fsbar2"]', root);
       if (b1) { var a = Math.min(100, t.hang / D.ship.free * 100); b1.style.width = a + '%'; b2.style.width = Math.min(100 - a, tot / D.ship.free * 100) + '%'; }
@@ -290,7 +291,12 @@
     track('begin_checkout', { currency: 'VND', value: totals().hang });
     if (window.MMMMaps && API) MMMMaps.init(API);
     var gOn = function () { return !!(window.MMMMaps && MMMMaps.on()); };
-    function err(n, m) { var e = $('[data-err="' + n + '"]', form); if (e) { e.textContent = m || ''; e.hidden = !m; } }
+    function fld(n) { return n === 'slot' ? $('[data-o="slots"]') : n === 'ward' ? (wsel && !wsel.hidden ? wsel : $('[data-wardedit]')) : form.querySelector('[name="' + n + '"]'); }
+    function err(n, m) {
+      var e = $('[data-err="' + n + '"]', form), f = fld(n); if (e) { e.textContent = m || ''; e.hidden = !m; }
+      if (f) { if (m) { f.setAttribute('aria-invalid', 'true'); f.setAttribute('aria-describedby', 'err-' + n); } else { f.removeAttribute('aria-invalid'); f.removeAttribute('aria-describedby'); } }
+    }
+    function goErr(n) { var f = fld(n); if (!f) return; if (n === 'slot') f = $('button:not([disabled])', f) || f; f.scrollIntoView({ behavior: 'smooth', block: 'center' }); try { f.focus({ preventScroll: true }); } catch (x) { f.focus(); } }
     function km() { if (st.mode !== 'Giao') return 0; if (st.g) return st.g.km; return st.geo ? roadKm(st.geo.ll) : null; }
     function zone() { var x = km(); return x == null ? null : x <= D.ship.bk ? 'in' : 'out'; }
     function calc() {
@@ -395,16 +401,16 @@
     form.addEventListener('submit', function (e) {
       e.preventDefault(); if (sending) return;
       var ten = F('ten').value.trim(), sdt = F('sdt').value.replace(/\D/g, ''), ok = true, first = null;
-      var bad = function (n, m) { err(n, m); ok = false; first = first || form.querySelector('[name="' + n + '"]') || $('[data-err="' + n + '"]', form); };
+      var bad = function (n, m) { err(n, m); ok = false; first = first || n; };
       ['ten', 'sdt', 'diachi', 'ward', 'slot'].forEach(function (n) { err(n); });
       if (ten.length < 2) bad('ten', 'Cho shop xin họ tên người nhận nhé.');
       if (!/^0\d{9}$/.test(sdt)) bad('sdt', 'Số điện thoại cần 10 số, bắt đầu bằng 0.');
       if (st.mode === 'Giao') {
         if (F('diachi').value.trim().length < 5) bad('diachi', 'Cần số nhà và tên đường để giao.');
-        else if (km() == null) { bad('ward', 'Chọn phường / xã để tính phí giao.'); wsel.hidden = false; }
+        else if (km() == null) { wsel.hidden = false; bad('ward', 'Chọn phường / xã để tính phí giao.'); }
       }
       if (!st.slot) bad('slot', 'Chọn khung giờ nhận hàng nhé.');
-      if (!ok) { if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+      if (!ok) { goErr(first); return; }
       var c = cart(), r = calc(), w = ward(wsel.value);
       if (F('nho').checked) ls('mmm-khach', { ten: ten, sdt: sdt, diachi: F('diachi').value.trim(), ward: wsel.value, mode: st.mode }); else ls('mmm-khach', null);
       var body = { form: 'order', hp: F('website').value, ms: Date.now() - t0, ref: document.referrer ? new URL(document.referrer).hostname : '', data: {
@@ -422,7 +428,7 @@
         if (j.ok) return done(j);
         sending = false; lab(true);
         var m = j.msg || 'Chưa gửi được đơn, bạn thử lại nhé.';
-        if (j.error === 'gio' || j.error === 'het') { err('slot', m); ls('mmm-data', null); } else if (j.error === 'sdt' || j.error === 'ten' || j.error === 'diachi') err(j.error, m); else toast(m);
+        if (j.error === 'gio' || j.error === 'het') { err('slot', m); goErr('slot'); ls('mmm-data', null); } else if (j.error === 'sdt' || j.error === 'ten' || j.error === 'diachi') { err(j.error, m); goErr(j.error); } else toast(m);
       }).catch(function () { sending = false; lab(true); toast('Mạng chập chờn, bạn bấm gửi lại nhé. Hoặc nhắn Zalo ' + D.shop.sdt + '.'); });
     });
     setMode(st.mode);

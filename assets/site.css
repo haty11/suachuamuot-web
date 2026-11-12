@@ -15,6 +15,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;line-height:1.12;color:var(--ink
 p{margin:0}
 button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--berry);outline-offset:2px}
+.topbar :focus-visible,.ftr :focus-visible,.cta :focus-visible{outline-color:#fff}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .wrap{max-width:1200px;margin:0 auto;padding:0 40px}
 .sec{padding:96px 0}.sec.alt{background:var(--paper)}.sec.sand{background:#F4EBE3}
