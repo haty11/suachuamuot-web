@@ -135,10 +135,8 @@
       set('a2p', fmt(unit(st.vi, 'A2', st.size)), root);
       set('name', f.full || st.vi, root); set('vname', f.ngan, root);
       set('meta', st.cot + ' · ' + st.size + 'g · ' + st.sl + ' hũ', root);
-      set('corelabel', 'Cốt ' + st.cot.toLowerCase() + ' ' + st.size + 'g', root); set('core', fmt(D.gia[st.cot][st.size]), root);
-      set('mixv', isMix(st.vi) ? '+' + fmt(D.mix) : '0đ', root);
       set('unit', fmt(u), root); set('total', fmt(tot), root); set('qty', st.sl, root);
-      set('formula', 'Cốt ' + st.cot.toLowerCase() + ' ' + st.size + 'g ' + fmt(D.gia[st.cot][st.size]) + (isMix(st.vi) ? ' + Mix ' + fmt(D.mix) : ''), root);
+      set('formula', st.sl > 1 ? fmt(u) + ' / hũ × ' + st.sl : '/ hũ', root);
       $$('[data-o="btn"]', root).forEach(function (b) { b.textContent = 'Thêm vào giỏ · ' + fmt(tot); });
       $$('[data-o="btn"]').forEach(function (b) { if (!root.contains(b) && root.dataset.fixed) b.textContent = 'Thêm vào giỏ · ' + fmt(tot); });
       if (root.dataset.fixed) { var sb = $('.stickybuy'); if (sb) { set('meta', st.cot + ' · ' + st.size + 'g · ' + st.sl + ' hũ', sb); set('total', fmt(tot), sb); } }
@@ -239,12 +237,12 @@
     box.innerHTML = c.map(function (it, i) {
       var p = priceItem(it);
       return '<div class="ci"><div class="th"><img src="' + itemImg(it) + '" alt="" loading="lazy"></div><div><h3>' + esc(itemTitle(it)) + '</h3><div class="meta">' + esc(itemMeta(it)) + '</div>' + (it.note ? '<div class="meta">Lưu ý: ' + esc(it.note) + '</div>' : '') + (p.le > p.gia ? '<div class="meta pos">Tiết kiệm ' + fmt(p.le - p.gia) + (p.free ? ' + freeship 5km' : '') + '</div>' : '') + '</div>' +
-        '<div class="qty"><button type="button" data-i="' + i + '" data-d="-1" aria-label="Giảm số lượng">−</button><span>' + it.sl + '</span><button type="button" data-i="' + i + '" data-d="1" aria-label="Tăng số lượng">+</button></div>' +
-        '<div class="lt">' + fmt(p.gia) + '</div><button type="button" class="del" data-del="' + i + '" aria-label="Bỏ khỏi giỏ"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div>';
+        '<div class="ctl"><div class="qty"><button type="button" data-i="' + i + '" data-d="-1" aria-label="Giảm số lượng">−</button><span>' + it.sl + '</span><button type="button" data-i="' + i + '" data-d="1" aria-label="Tăng số lượng">+</button></div>' +
+        '<div class="lt">' + fmt(p.gia) + '</div><button type="button" class="del" data-del="' + i + '" aria-label="Bỏ khỏi giỏ"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div></div>';
     }).join('');
     set('tien', fmt(t.hang));
     var need = D.ship.free - t.hang;
-    set('shipline', t.free || need <= 0 ? 'Miễn phí (trong ' + D.ship.bk + 'km)' : fmt(D.ship.phi) + ' (trong ' + D.ship.bk + 'km)');
+    set('shipline', (t.free || need <= 0 ? 'Miễn phí' : fmt(D.ship.phi)) + ' nếu trong ' + D.ship.bk + 'km');
     set('grand', fmt(t.hang + (t.free || need <= 0 ? 0 : D.ship.phi)));
     set('fshead', t.free || need <= 0 ? 'Đơn đã được freeship trong ' + D.ship.bk + 'km' : 'Còn ' + fmt(need) + ' nữa là freeship');
     set('fsratio', fmt(Math.min(t.hang, D.ship.free)) + ' / ' + fmt(D.ship.free));
@@ -412,7 +410,8 @@
       var body = { form: 'order', hp: F('website').value, ms: Date.now() - t0, ref: document.referrer ? new URL(document.referrer).hostname : '', data: {
         ten: ten, sdt: sdt, nhan: st.mode, diachi: F('diachi').value.trim(), phuong: st.g ? st.g.ward : w ? w[1] : '', km: km() || 0, ngay: st.day, slot: st.slot, ghichu: F('ghichu').value.trim(), utm: ls('mmm-utm') || '',
         items: c.map(function (it) { return it.t === 'combo' ? { combo: it.combo, cot: it.cot, vis: it.vis, hu: it.hu, sl: it.sl, note: it.note } : { vi: it.vi, cot: it.cot, size: it.size, sl: it.sl, note: it.note }; }) } };
-      var btn = $('[data-o="submit"]'); sending = true; btn.disabled = true; btn.textContent = 'Đang gửi đơn…';
+      var bs = $$('[data-o="submit"]'), lab = function (on) { bs.forEach(function (b, i) { b.disabled = !on; b.textContent = on ? (i ? 'Thanh toán VietQR' : 'Tiếp tục · Thanh toán VietQR') : 'Đang gửi đơn…'; }); };
+      sending = true; lab(false);
       var done = function (j) {
         ls('mmm-last', { ma: j.ma, sdt: sdt, ten: ten, tong: j.tong, hang: j.hang, ship: j.ship, ngoai: j.ngoai, nd: j.nd, nhan: st.mode, diachi: body.data.diachi + (body.data.phuong ? ', ' + body.data.phuong : ''), ngay: st.day, slot: st.slot, dayLabel: st.dayLabel, ghichu: body.data.ghichu, items: c, t: Date.now() });
         ls('mmm-cart', null); track('purchase', { transaction_id: j.ma, currency: 'VND', value: j.tong });
@@ -421,10 +420,10 @@
       if (!API) { done({ ma: 'MMMDEMO', tong: r.t.hang + r.ship, hang: r.t.hang, ship: r.ship, ngoai: r.z === 'out', nd: sdt + ' MMMDEMO' }); return; }
       fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) }).then(function (x) { return x.json(); }).then(function (j) {
         if (j.ok) return done(j);
-        sending = false; btn.disabled = false; btn.textContent = 'Tiếp tục · Thanh toán VietQR';
+        sending = false; lab(true);
         var m = j.msg || 'Chưa gửi được đơn, bạn thử lại nhé.';
         if (j.error === 'gio' || j.error === 'het') { err('slot', m); ls('mmm-data', null); } else if (j.error === 'sdt' || j.error === 'ten' || j.error === 'diachi') err(j.error, m); else toast(m);
-      }).catch(function () { sending = false; btn.disabled = false; btn.textContent = 'Tiếp tục · Thanh toán VietQR'; toast('Mạng chập chờn, bạn bấm gửi lại nhé. Hoặc nhắn Zalo ' + D.shop.sdt + '.'); });
+      }).catch(function () { sending = false; lab(true); toast('Mạng chập chờn, bạn bấm gửi lại nhé. Hoặc nhắn Zalo ' + D.shop.sdt + '.'); });
     });
     setMode(st.mode);
     if (saved.ward && !locate(F('diachi').value)) { var w0 = ward(saved.ward); if (w0) st.geo = { ll: [w0[2], w0[3]], auto: false }; } else if (F('diachi').value) detect();
@@ -438,7 +437,10 @@
     if (!L || L.ma !== ma) { $('[data-o="nolast"]').hidden = false; $('[data-o="paybox"]').hidden = true; return; }
     var B = D.bank, qr = 'https://img.vietqr.io/image/' + B.bin + '-' + B.stk + '-compact2.png?amount=' + L.tong + '&addInfo=' + encodeURIComponent(L.nd) + '&accountName=' + encodeURIComponent(B.chu);
     set('ma', L.ma); set('bank', B.ten); set('stk', B.stk.replace(/(\d{4})(?=\d)/g, '$1 ')); set('chu', B.chu); set('tong', fmt(L.tong)); set('nd', L.nd);
-    $('[data-o="qr"]').src = qr; $('[data-o="qrlink"]').href = qr;
+    var qi = $('[data-o="qr"]'), qe = $('[data-o="qrerr"]');
+    qi.onerror = function () { qi.hidden = true; qe.hidden = false; }; qi.onload = function () { qi.hidden = false; qe.hidden = true; };
+    $('[data-o="qrretry"]').onclick = function () { qe.hidden = true; qi.hidden = false; qi.src = qr + '&r=' + Date.now(); };
+    qi.src = qr; $('[data-o="qrlink"]').href = qr;
     set('nguoi', L.ten + ' · ' + L.sdt); set('giao', L.nhan === 'Giao' ? 'Giao đến: ' + L.diachi : 'Tự đến lấy tại ' + D.shop.dc);
     set('when', (L.nhan === 'Giao' ? 'Giao ' : 'Lấy ') + (L.dayLabel || L.ngay) + ' · ' + L.slot);
     $('[data-o="gc"]').hidden = !L.ghichu; set('gcv', L.ghichu || '');

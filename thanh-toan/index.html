@@ -14,13 +14,13 @@
 <link rel="preconnect" href="https://script.google.com"><link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css?v=a44eb49d">
+<link rel="stylesheet" href="/assets/site.css?v=5d0f33b6">
 <meta name="robots" content="noindex">
 </head>
 <body data-page="pay">
 <header class="hd"><div class="wrap">
   <a class="logo" href="/" aria-label="Mướt Mườn Mượt – trang chủ" style="margin:0"><img src="/logo.webp" alt="Mướt Mườn Mượt" width="69" height="64"></a>
-  <nav class="steps" aria-label="Các bước đặt hàng"><a href="/gio-hang/" style="text-decoration:none"><span class="done"><i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></i><em>Giỏ hàng</em></span></a><b class="done"></b><a href="/dat-hang/" style="text-decoration:none"><span class="done"><i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></i><em>Thông tin giao</em></span></a><b class="done"></b><span class="cur"><i>3</i><em>Thanh toán VietQR</em></span></nav>
+  <nav class="steps" aria-label="Các bước đặt hàng"><a href="/gio-hang/" style="text-decoration:none" aria-label="Quay lại giỏ hàng"><span class="done"><i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></i><em>Giỏ hàng</em></span></a><b class="done"></b><a href="/dat-hang/" style="text-decoration:none" aria-label="Sửa thông tin giao"><span class="done"><i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></i><em>Thông tin giao</em></span></a><b class="done"></b><span class="cur"><i>3</i><em>Thanh toán VietQR</em></span></nav>
   <a class="btn btn-o btn-sm zalo" href="https://zalo.me/0984895998" target="_blank" rel="noopener">Nhắn Zalo</a>
 </div></header>
 <main id="main">
@@ -31,7 +31,7 @@
   <div class="co">
     <div>
       <div class="card pay" data-o="qrcard">
-        <div class="qr"><b style="font-size:14px">Quét bằng app ngân hàng</b><img data-o="qr" alt="Mã VietQR chuyển khoản đơn hàng" width="210" height="210"><small>VIETQR · NAPAS 247</small><a class="btn btn-o btn-sm btn-block" data-o="qrlink" target="_blank" rel="noopener"><span data-o="saveqr">Lưu ảnh QR</span></a></div>
+        <div class="qr"><b style="font-size:14px">Quét bằng app ngân hàng</b><img data-o="qr" alt="Mã VietQR chuyển khoản đơn hàng" width="210" height="210"><div class="qrerr" data-o="qrerr" hidden><span>Chưa tải được mã QR. Bạn chuyển khoản theo thông tin bên dưới, hoặc <button type="button" class="lk" data-o="qrretry">thử tải lại</button></span></div><small>VIETQR · NAPAS 247</small><a class="btn btn-o btn-sm btn-block" data-o="qrlink" target="_blank" rel="noopener"><span data-o="saveqr">Lưu ảnh QR</span></a></div>
         <div><h2 style="font-size:24px;margin-bottom:6px">Hoặc chuyển khoản thủ công</h2>
           <div class="kv2">
             <div><span>Ngân hàng</span><b data-o="bank"></b><i></i></div>
@@ -43,7 +43,7 @@
           <p class="warn" style="margin-top:14px">Giữ đúng <b>nội dung chuyển khoản</b> để shop đối soát nhanh. Mã QR đã điền sẵn số tiền và nội dung.</p>
         </div>
       </div>
-      <div class="row" style="margin-top:20px"><button type="button" class="btn btn-p" data-o="paid">Tôi đã chuyển khoản</button><span class="note">Shop kiểm tra tài khoản rồi nhắn Zalo / gọi xác nhận.</span></div>
+      <div class="card paidrow"><button type="button" class="btn btn-p" data-o="paid">Tôi đã chuyển khoản</button><span class="note">Shop kiểm tra tài khoản rồi nhắn Zalo / gọi xác nhận.</span></div>
       <div class="card track"><h2 style="font-size:24px">Trạng thái đơn</h2><ol>
         <li><i>1</i><div><b>Đã đặt hàng</b><small>Shop đã nhận đơn của bạn</small></div></li>
         <li><i>2</i><div><b>Chờ thanh toán</b><small>Chuyển khoản theo mã QR phía trên</small></div></li>
@@ -56,8 +56,8 @@
       <div data-o="slines"></div>
       <div><div class="line"><span>Tiền hàng</span><span data-o="hang"></span></div><div class="line"><span>Phí giao</span><span data-o="ship"></span></div></div>
       <div class="total"><span>Tổng thanh toán</span><b data-o="tong"></b></div>
-      <div class="card help" style="padding:12px 14px"><img class="stk tiny" src="/img/stk/06-e-then.webp" alt="" width="289" height="320" loading="lazy" aria-hidden="true" ><span>Cần hỗ trợ? Gọi / Zalo <a href="https://zalo.me/0984895998" target="_blank" rel="noopener"><b>0984 895 998</b></a></span></div>
-      <a href="/" class="center note">Về trang chủ</a>
+      <div class="card help" style="padding:12px 14px"><img class="stk tiny" src="/img/stk/06-e-then.webp" alt="" width="289" height="320" loading="lazy" aria-hidden="true" ><span>Cần hỗ trợ? Gọi / Zalo <a class="lk" href="https://zalo.me/0984895998" target="_blank" rel="noopener"><b>0984 895 998</b></a></span></div>
+      <a href="/" class="center note lk">Về trang chủ</a>
     </aside>
   </div>
   </div>
@@ -77,6 +77,6 @@
 </div></footer>
 <script>window.MMM_D={"shop":{"ten":"Mướt Mườn Mượt","sdt":"0984895998","dc":"12 Nguyên Hồng, Giảng Võ, Hà Nội","ig":"https://www.instagram.com/muot.greekyogurt/","threads":"https://www.threads.net/@muot.greekyogurt","baoQuan":"Ngăn mát 6 – 8°C, dùng trong 5 – 7 ngày kể từ ngày sản xuất","hsd":5},"bank":{"ten":"Techcombank","bin":"970407","stk":"19034850918018","chu":"LE NGUYEN HUYEN MY","nd":"{sdt} {ma}"},"ship":{"phi":30000,"free":200000,"bk":5},"soNgay":4,"khoaPhut":60,"vi":[{"ten":"Original không đường","nhom":"Original","moTa":"Vị chua thanh nguyên bản, không thêm đường.","ban":true},{"ten":"Original ít đường","nhom":"Original","moTa":"Ngọt nhẹ, dễ ăn cho người mới.","ban":true},{"ten":"Trà Earl Grey","nhom":"Mix","moTa":"Ít đường, thơm trà Earl Grey Anh Quốc.","ban":true},{"ten":"Mè đen","nhom":"Mix","moTa":"Ít đường, bơ mè đen béo bùi.","ban":true},{"ten":"Nhãn sấy","nhom":"Mix","moTa":"Ít đường, nhãn sấy dẻo ngọt.","ban":true},{"ten":"Dâu sấy","nhom":"Mix","moTa":"Ít đường, dâu sấy chua ngọt.","ban":true}],"gia":{"Thanh trùng":{"100":35000,"250":75000,"450":140000,"moTa":"Sữa tươi thanh trùng Mộc Châu"},"A2":{"100":40000,"250":85000,"450":160000,"moTa":"Sữa Mleko A2A2"}},"mix":10000,"combos":[{"ten":"Mướt Ăn Thử","gom":"3 × 100g · chọn 1 trong 2 bộ vị","giaTT":115000,"giaA2":125000,"giam":0,"freeship":false,"ban":true},{"ten":"Mướt Ăn Đủ","gom":"6 × 100g · đủ 6 vị","giaTT":230000,"giaA2":260000,"giam":20000,"freeship":true,"ban":true},{"ten":"Mướt Ăn Khoẻ","gom":"1 × 250g + 1 × 450g · khách tự chọn vị, cốt","giaTT":0,"giaA2":0,"giam":15000,"freeship":true,"ban":true}],"khung":[{"gio":"9:00 – 11:00","giao":true,"lay":true},{"gio":"11:00 – 13:00","giao":true,"lay":true},{"gio":"13:00 – 15:00","giao":true,"lay":true},{"gio":"15:00 – 17:00","giao":true,"lay":true}],"ga4":"","clarity":"","het":[]};</script>
 <script src="/config.js?v=1"></script>
-<script src="/assets/site.js?v=bfef516d" defer></script>
+<script src="/assets/site.js?v=9bd1059f" defer></script>
 </body>
 </html>
