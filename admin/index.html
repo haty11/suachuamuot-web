@@ -857,8 +857,115 @@ function traffic(days) {
   }
   return out.slice(-days);
 }
+/* ===== Truy cập web: số liệu thật GA4 + Clarity ===== */
+var TRL = { days: 28, data: null, loading: false, err: '' };
+function loadTraffic(fresh) {
+  if (TRL.loading) return; TRL.loading = true; TRL.err = '';
+  api('analytics', { days: TRL.days, fresh: fresh ? 1 : 0 }).then(function (r) {
+    TRL.data = r; TRL.loading = false; if (route() === 'truy-cap') render();
+    if (fresh) { var m = r.clarityMsg; toast(m === 'ok' ? 'Đã lấy số liệu mới (GA4 + Clarity)' : m === 'quota' ? 'GA4 đã mới. Clarity hết lượt hôm nay, tự cập nhật 22h' : /^cool/.test(m) ? 'GA4 đã mới. Clarity cho làm mới lại sau ' + m.slice(16, 21) : m === 'notoken' ? 'GA4 đã mới. Chưa có token Clarity' : 'GA4 đã mới'); }
+  }).catch(function (e) { TRL.loading = false; TRL.err = (e && (e.msg || e.error)) || 'Không tải được'; if (route() === 'truy-cap') render(); });
+}
+var ckey = function (s) { return String(s || '').toLowerCase().replace(/[^a-z]/g, ''); };
+function cget(o, names) { for (var n = 0; n < names.length; n++) for (var k in o) if (ckey(k) === ckey(names[n])) { var v = Number(o[k]); if (!isNaN(v)) return v; } return null; }
+function cMetrics(data) { var m = {}; (data || []).forEach(function (x) { m[ckey(x.metricName)] = x.information || []; }); return m; }
+function claritySum(rows) {
+  var tot = rows.filter(function (r) { return r.dim === 'Tổng'; }), last = tot[tot.length - 1]; if (!last) return null;
+  var m = cMetrics(last.data), t = (m.traffic || [])[0] || {}, g = function (k) { return (m[k] || [])[0] || {}; };
+  var s = { d: last.d, at: last.at, sess: cget(t, ['totalSessionCount']), users: cget(t, ['distantUserCount', 'distinctUserCount']), scroll: cget(g('scrolldepth'), ['averageScrollDepth']),
+    rage: cget(g('rageclickcount'), ['sessionsWithMetricPercentage']), dead: cget(g('deadclickcount'), ['sessionsWithMetricPercentage']), quick: cget(g('quickbackclick'), ['sessionsWithMetricPercentage']),
+    err: cget(g('scripterrorcount'), ['sessionsWithMetricPercentage']), urls: [] };
+  var ur = rows.filter(function (r) { return r.dim === 'URL'; }).slice(-1)[0], urls = {};
+  if (ur) { var um = cMetrics(ur.data); var add = function (key, f, as) { (um[key] || []).forEach(function (i) { var u = i.Url || i.URL || i.url || i.PageUrl; if (!u) return; var p = u.replace(/^https?:\/\/[^/]+/, '').replace(/[?#].*$/, '') || '/'; urls[p] = urls[p] || { p: p }; urls[p][as] = cget(i, [f]); }); };
+    add('traffic', 'totalSessionCount', 'sess'); add('rageclickcount', 'sessionsWithMetricPercentage', 'rage'); add('deadclickcount', 'sessionsWithMetricPercentage', 'dead'); add('quickbackclick', 'sessionsWithMetricPercentage', 'quick'); add('scrolldepth', 'averageScrollDepth', 'scroll'); }
+  s.urls = Object.keys(urls).map(function (k) { return urls[k]; }).sort(function (a, b) { return (b.sess || 0) - (a.sess || 0); }).slice(0, 10);
+  return s;
+}
+function pageName(p) {
+  var VN = { '/': 'Trang chủ', '/gio-hang/': 'Giỏ hàng', '/dat-hang/': 'Thông tin nhận hàng', '/thanh-toan/': 'Thanh toán VietQR', '/admin/': 'Trang quản lý' };
+  if (VN[p]) return VN[p]; var m = p.match(/^\/vi\/([^/]+)/); if (m) { var v = VI.filter(function (x) { return slug(x.ten).indexOf(m[1].replace('earl-grey', 'tra-earl-grey')) >= 0 || slug(x.ten) === m[1]; })[0]; return 'Vị · ' + (v ? v.ten : m[1]); } return p;
+}
+function nf(n) { return n == null ? '—' : Math.round(n).toLocaleString('vi-VN'); }
+function pct(n) { return n == null ? '—' : (Math.round(n * 10) / 10).toString().replace('.', ',') + '%'; }
+function vTrafficLive() {
+  var chips = '<div class="chips">' + [[7, '7 ngày'], [28, '28 ngày'], [90, '90 ngày']].map(function (r) { return '<button type="button" class="chip' + (TRL.days === r[0] ? ' on' : '') + '" data-trl="' + r[0] + '">' + r[1] + '</button>'; }).join('') + '<button type="button" class="btn sm" data-act2="trfresh"' + (TRL.loading ? ' disabled' : '') + '>' + (TRL.loading ? 'Đang tải…' : 'Làm mới') + '</button></div>';
+  var H = head('Truy cập web', 'suachuamuot.com · Google Analytics 4 (lượt vào, nguồn, phễu đặt hàng) và Microsoft Clarity (hành vi, chỗ khách bị vướng).', chips);
+  if (!TRL.data) { if (!TRL.loading && !TRL.err) setTimeout(function () { loadTraffic(false); }, 0); return H + '<div class="card"><p class="sub" style="margin:0">' + (TRL.err ? '<span class="neg">Chưa tải được: ' + esc(TRL.err) + '</span>' : 'Đang lấy số liệu từ Google Analytics và Clarity…') + '</p></div>'; }
+  var d = TRL.data, ga = d.ga, out = H;
+  if (!ga) {
+    var why = d.gaErr === 'noprop' ? 'Chưa có <b>Mã thuộc tính (Property ID)</b> trong Sheet › Cài đặt.' : d.gaErr === 'noservice' ? 'Apps Script chưa bật dịch vụ <b>Google Analytics Data API</b>: mở Apps Script › mục <b>Dịch vụ ＋</b> › chọn <b>Google Analytics Data API</b> › Thêm (giữ tên AnalyticsData) › Lưu › Triển khai phiên bản mới.' : /permission|403/i.test(d.gaErr) ? 'Tài khoản Google chạy Apps Script chưa có quyền xem thuộc tính GA4 này. Kiểm tra Property ID, hoặc thêm tài khoản đó vào GA4 › Quản trị › Quản lý quyền truy cập.' : 'GA4 báo lỗi: <code>' + esc(d.gaErr) + '</code>';
+    out += '<div class="card"><h2>Chưa đọc được Google Analytics</h2><p class="sub" style="margin:0">' + why + '</p></div>';
+  }
+  var days = d.days, from = iso(addD(TODAY, -(days - 1)));
+  var webO = S.orders.filter(function (o) { return o.kenh === 'Web' && o.tao.slice(0, 10) >= from; }), webPaid = webO.filter(paidOk);
+  var webRev = webPaid.reduce(function (s, o) { return s + o.hang; }, 0);
+  if (ga) {
+    var T = ga.totals || [], c = T.filter(function (x) { return !x.dateRange || x.dateRange === 'date_range_0'; })[0] || {}, p = T.filter(function (x) { return x.dateRange === 'date_range_1'; })[0] || {}, ch = function (k) { return p[k] ? Math.round((c[k] - p[k]) / p[k] * 100) : null; };
+    var delta = function (k) { var x = ch(k); return x == null ? '' : ' <span class="' + (x >= 0 ? 'pos' : 'neg') + '">' + (x >= 0 ? '▲' : '▼') + Math.abs(x) + '%</span>'; };
+    var ev = {}; (ga.events || []).forEach(function (e) { if (e.dateRange === 'date_range_1') return; ev[e.eventName] = e; });
+    (ga.events || []).forEach(function (e) { if (!e.dateRange || e.dateRange === 'date_range_0') ev[e.eventName] = e; });
+    var sess = c.sessions || 0, viewVi = (ga.pages || []).filter(function (x) { return /^\/vi\//.test(x.pagePath); }).reduce(function (s, x) { return s + x.activeUsers; }, 0);
+    var funnel = [['Vào web', sess, 'lượt'], ['Xem trang vị', viewVi, 'người'], ['Thêm vào giỏ', (ev.add_to_cart || {}).totalUsers || 0, 'người'], ['Bắt đầu đặt', (ev.begin_checkout || {}).totalUsers || 0, 'người'], ['Đặt hàng', (ev.purchase || {}).eventCount || webO.length, 'đơn'], ['Đã chuyển khoản', webPaid.length, 'đơn']];
+    var top = Math.max(1, funnel[0][1]);
+    var fh = funnel.map(function (f, i) { var w = f[1] / top * 100, prev = i ? funnel[i - 1][1] : 0, drop = i && prev ? Math.round((1 - f[1] / prev) * 100) : null;
+      return '<div class="hbar" style="grid-template-columns:minmax(110px,150px) minmax(0,1fr) 120px"><span>' + f[0] + '</span><span class="track" style="height:18px"><span class="fill" style="width:' + Math.max(w, f[1] ? 1 : 0) + '%;display:block;opacity:' + (1 - i * 0.12) + '"></span></span><span style="text-align:right"><b>' + nf(f[1]) + '</b>' + (drop != null && drop > 0 ? ' <span class="sub">−' + drop + '%</span>' : '') + '</span></div>'; }).join('');
+    var rt = d.rt && !d.rt.error ? d.rt.users : null;
+    out += '<div class="grid g4"><div class="card kpi"><span class="l">Đang xem web lúc này</span><span class="v"><span class="pill p-good" style="font-size:20px;padding:2px 12px">' + (rt == null ? '—' : rt) + '</span></span><span class="s">GA4 thời gian thực · 30 phút qua</span></div>' +
+      '<div class="card kpi"><span class="l">Lượt truy cập · ' + days + ' ngày</span><span class="v">' + nf(sess) + delta('sessions') + '</span><span class="s">' + nf(c.activeUsers) + ' người · ' + nf(c.newUsers) + ' người mới</span></div>' +
+      '<div class="card kpi"><span class="l">Tỉ lệ đặt hàng</span><span class="v">' + (sess ? pct(webO.length / sess * 100) : '—') + '</span><span class="s">' + webO.length + ' đơn web / ' + nf(sess) + ' lượt</span></div>' +
+      '<div class="card kpi"><span class="l">Doanh thu / lượt truy cập</span><span class="v">' + money(sess ? webRev / sess : 0) + '</span><span class="s">Đơn web đã thu: ' + money(webRev) + '</span></div></div>';
+    // việc nên làm
+    var tips = [];
+    if (sess < 30) tips.push(['info', 'Số liệu còn ít (' + nf(sess) + ' lượt)', 'Chia sẻ link suachuamuot.com lên Instagram, Threads, Zalo kèm ?utm_source=instagram (…) để GA4 tách đúng nguồn. Đủ khoảng 100 lượt thì phễu mới đáng tin.']);
+    else { var drops = funnel.slice(1, 5).map(function (f, i) { return funnel[i][1] ? 1 - f[1] / funnel[i][1] : 0; }), wi = drops.indexOf(Math.max.apply(null, drops));
+      tips.push(['bad', 'Rơi nhiều nhất ở bước "' + funnel[wi][0] + ' → ' + funnel[wi + 1][0] + '" (−' + Math.round(drops[wi] * 100) + '%)', wi <= 1 ? 'Xem bản ghi Clarity của trang vị: nút Thêm vào giỏ và giá có đủ rõ trên điện thoại không.' : 'Xem bản ghi Clarity của trang Thông tin nhận hàng: ô địa chỉ, phường, khung giờ có làm khách bối rối không.']); }
+    var srcs = (ga.sources || []).slice(0, 8), pur = {}; (ga.srcEvents || []).forEach(function (x) { if (x.eventName === 'purchase') pur[x.sessionSource] = (pur[x.sessionSource] || 0) + x.eventCount; });
+    var best = srcs.filter(function (s) { return s.sessions >= 10; }).map(function (s) { return { k: s.sessionSource, cr: (pur[s.sessionSource] || 0) / s.sessions * 100 }; }).sort(function (a, b) { return b.cr - a.cr; })[0];
+    if (best && best.cr > 0) tips.push(['good', best.k + ' chốt đơn tốt nhất (' + pct(best.cr) + ')', 'Dồn thêm nội dung và link combo Mướt Ăn Thử vào kênh này.']);
+    var devs = ga.devices || [], dsum = devs.reduce(function (s, x) { return s + x.sessions; }, 0), mob = devs.filter(function (x) { return x.deviceCategory === 'mobile'; })[0];
+    if (mob && dsum) tips.push(['warn', Math.round(mob.sessions / dsum * 100) + '% khách vào bằng điện thoại', 'Mọi thay đổi giao diện nên thử trên điện thoại trước.']);
+    out += '<div class="card"><div class="toolbar"><h2>Việc nên làm</h2><span class="sub">Gợi ý tự động từ số liệu</span></div><div class="todo">' + tips.map(function (x) { return '<a href="#truy-cap" data-goto=""><span class="dot" style="background:var(--' + x[0] + ')"></span><span class="t"><b>' + esc(x[1]) + '</b><br><span class="sub">' + esc(x[2]) + '</span></span></a>'; }).join('') + '</div></div>';
+    out += '<div class="grid g21"><div class="card"><div class="toolbar"><h2>Phễu đặt hàng</h2><span class="sub">GA4 + đơn web trong Sheet</span></div>' + fh + '</div>' +
+      '<div class="card"><h2>Thiết bị</h2>' + devs.map(function (x) { var w = dsum ? x.sessions / dsum * 100 : 0, nm = { mobile: 'Điện thoại', desktop: 'Máy tính', tablet: 'Máy tính bảng' }[x.deviceCategory] || x.deviceCategory; return '<div class="hbar"><span>' + nm + '</span><span class="track"><span class="fill" style="width:' + w + '%;display:block"></span></span><b style="text-align:right">' + Math.round(w) + '%</b></div>'; }).join('') +
+      ((ga.cities || []).length ? '<h3 style="margin-top:14px">Thành phố</h3>' + ga.cities.slice(0, 5).map(function (x) { return '<div class="toolbar"><span>' + esc(x.city === '(not set)' ? 'Chưa rõ' : x.city) + '</span><b>' + nf(x.activeUsers) + '</b></div>'; }).join('') : '') + '</div></div>';
+    // biểu đồ ngày
+    var byDay = {}; (ga.daily || []).forEach(function (x) { byDay[x.date.slice(0, 4) + '-' + x.date.slice(4, 6) + '-' + x.date.slice(6, 8)] = x.sessions; });
+    var od = {}; webO.forEach(function (o) { var k2 = o.tao.slice(0, 10); od[k2] = (od[k2] || 0) + 1; });
+    var t = []; for (var i = days - 1; i >= 0; i--) { var k3 = iso(addD(TODAY, -i)); t.push({ d: k3, v: byDay[k3] || 0, o: od[k3] || 0 }); }
+    var W = 1000, Hh = 190, pl = 40, pb = 24, mx = Math.max(5, Math.max.apply(null, t.map(function (x) { return x.v; }))), tp = Math.ceil(mx / 5) * 5, bw = (W - pl - 6) / t.length, y = function (v) { return 8 + (Hh - 8 - pb) * (1 - v / tp); };
+    var gg = [0, tp / 2, tp].map(function (v) { return '<line x1="' + pl + '" x2="' + W + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="var(--line)"/><text x="' + (pl - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + v + '</text>'; }).join('');
+    var pts = t.map(function (x, i) { return (pl + i * bw + bw / 2).toFixed(1) + ',' + y(x.v).toFixed(1); });
+    gg += '<polygon points="' + (pl + bw / 2) + ',' + (Hh - pb) + ' ' + pts.join(' ') + ' ' + (pl + (t.length - 1) * bw + bw / 2) + ',' + (Hh - pb) + '" fill="var(--accent-soft)"/><polyline points="' + pts.join(' ') + '" fill="none" stroke="var(--accent)" stroke-width="2"/>';
+    t.forEach(function (x, i) { if (x.o) gg += '<circle cx="' + (pl + i * bw + bw / 2) + '" cy="' + y(x.v) + '" r="' + (3 + Math.min(6, x.o)) + '" fill="var(--good)" opacity=".75"/>'; if (i % Math.ceil(t.length / 7) === 0 || i === t.length - 1) gg += '<text x="' + (pl + i * bw + bw / 2) + '" y="' + (Hh - 6) + '" text-anchor="middle" font-size="11" fill="var(--muted)">' + (i === t.length - 1 ? 'Hôm nay' : dm(x.d)) + '</text>'; });
+    out += '<div class="card"><div class="toolbar"><h2>Lượt truy cập mỗi ngày</h2><div class="legend"><span><i style="background:var(--accent)"></i>Lượt truy cập</span><span><i style="background:var(--good);border-radius:50%"></i>Có đơn web</span></div></div><svg class="bars" viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="Lượt truy cập theo ngày">' + gg + '</svg></div>';
+    var ordSrc = {}; webO.forEach(function (o) { var k4 = (o.nguon || 'web').toLowerCase(); ordSrc[k4] = (ordSrc[k4] || 0) + 1; });
+    out += '<div class="grid g2"><div class="card"><h2>Khách đến từ đâu</h2><div class="tbl-wrap"><table><thead><tr><th>Nguồn</th><th class="r">Lượt</th><th class="r">Đơn</th><th class="r">Tỉ lệ đặt</th></tr></thead><tbody>' +
+      (srcs.length ? srcs.map(function (s) { var n = pur[s.sessionSource] || ordSrc[(s.sessionSource || '').toLowerCase()] || 0, cr = s.sessions ? n / s.sessions * 100 : 0, nm = s.sessionSource === '(direct)' ? 'Gõ thẳng / Zalo' : s.sessionSource; return '<tr><td>' + esc(nm) + '</td><td class="r">' + nf(s.sessions) + '</td><td class="r">' + n + '</td><td class="r"><span class="pill ' + (cr >= 3 ? 'p-good' : cr >= 1 ? 'p-warn' : 'p-mute') + '">' + pct(cr) + '</span></td></tr>'; }).join('') : '<tr><td colspan="4" class="sub">Chưa có số liệu</td></tr>') +
+      '</tbody></table></div><div class="note">Link đăng Instagram, Threads, Zalo nên thêm <code>?utm_source=instagram</code>… để tách đúng nguồn. Nguồn này cũng ghi vào cột Nguồn của đơn.</div></div>';
+    var cs0 = claritySum(d.clarity || []), scr = {}; if (cs0) cs0.urls.forEach(function (u) { scr[u.p] = u.scroll; });
+    out += '<div class="card"><h2>Trang được xem</h2><div class="tbl-wrap"><table><thead><tr><th>Trang</th><th class="r">Lượt xem</th><th class="r">Thời gian TB</th><th class="r">Cuộn TB</th></tr></thead><tbody>' +
+      ((ga.pages || []).filter(function (x) { return !/^\/admin/.test(x.pagePath); }).slice(0, 10).map(function (x) { var sec = x.activeUsers ? x.userEngagementDuration / x.activeUsers : 0; return '<tr><td>' + esc(pageName(x.pagePath)) + '</td><td class="r">' + nf(x.screenPageViews) + '</td><td class="r">' + (sec >= 60 ? Math.floor(sec / 60) + 'p' + String(Math.round(sec % 60)).padStart(2, '0') : Math.round(sec) + 's') + '</td><td class="r">' + (scr[x.pagePath] != null ? pct(scr[x.pagePath]) : '—') + '</td></tr>'; }).join('') || '<tr><td colspan="4" class="sub">Chưa có số liệu</td></tr>') + '</tbody></table></div></div></div>';
+  }
+  // Clarity
+  var cs = claritySum(d.clarity || []), link = d.clarityId ? 'https://clarity.microsoft.com/projects/view/' + d.clarityId + '/dashboard' : 'https://clarity.microsoft.com';
+  out += '<div class="card"><div class="toolbar"><h2>Hành vi khách (Clarity)</h2><div class="chips"><span class="sub">' + (cs ? 'Số liệu ngày ' + dm(cs.d) + (cs.at ? ' · lấy lúc ' + cs.at.slice(11, 16) : '') : 'Tự lấy lúc 22h mỗi ngày') + ' · đã dùng ' + d.clarityUsed + '/10 lượt hôm nay</span><a class="btn sm" href="' + link + '" target="_blank" rel="noopener">Xem bản ghi trên Clarity ↗</a></div></div>';
+  if (!d.clarityToken) out += '<p class="sub">Chưa có token Clarity trong Sheet › Cài đặt.</p>';
+  else if (!cs) out += '<p class="sub">Chưa có số liệu Clarity. Bấm <b>Làm mới</b> ở trên để lấy ngay (Clarity cần khoảng 1–2 giờ sau khi có khách vào web).</p>';
+  else {
+    out += '<div class="grid g4">' + [['Phiên (24h)', nf(cs.sess), nf(cs.users) + ' người'], ['Cuộn trang TB', pct(cs.scroll), 'Càng cao khách càng đọc kỹ'], ['Rage click', pct(cs.rage), '% phiên bấm liên tục vì bực'], ['Dead click', pct(cs.dead), '% phiên bấm vào chỗ không bấm được']].map(function (k) { return '<div class="card flat kpi"><span class="l">' + k[0] + '</span><span class="v">' + k[1] + '</span><span class="s">' + k[2] + '</span></div>'; }).join('') + '</div>' +
+      '<div class="toolbar" style="margin-top:6px"><span class="sub">Quay lại nhanh: <b>' + pct(cs.quick) + '</b> · Lỗi JS: <b>' + pct(cs.err) + '</b> phiên</span></div>';
+    var iss = cs.urls.filter(function (u) { return (u.rage || 0) + (u.dead || 0) + (u.quick || 0) > 0; });
+    out += '<h3>Chỗ khách bị vướng</h3><div class="tbl-wrap"><table><thead><tr><th>Trang</th><th class="r">Phiên</th><th class="r">Rage</th><th class="r">Dead</th><th class="r">Quay lại nhanh</th><th class="r">Cuộn TB</th></tr></thead><tbody>' +
+      (cs.urls.length ? cs.urls.map(function (u) { var bad = function (v) { return v != null && v >= 10 ? ' class="r neg"' : ' class="r"'; }; return '<tr><td>' + esc(pageName(u.p)) + '</td><td class="r">' + nf(u.sess) + '</td><td' + bad(u.rage) + '>' + pct(u.rage) + '</td><td' + bad(u.dead) + '>' + pct(u.dead) + '</td><td' + bad(u.quick) + '>' + pct(u.quick) + '</td><td class="r">' + pct(u.scroll) + '</td></tr>'; }).join('') : '<tr><td colspan="6" class="sub">Chưa có số liệu theo trang</td></tr>') + '</tbody></table></div>' +
+      (iss.length ? '<div class="note">Ô đỏ (từ 10% phiên trở lên) là chỗ nên xem bản ghi trên Clarity trước.</div>' : '');
+  }
+  out += '</div>';
+  if (ga) out += '<p class="note">GA4 cập nhật lúc ' + esc((ga.at || '').replace('T', ' ')) + ' · số liệu giữ 15 phút, bấm Làm mới để lấy ngay.</p>';
+  return out;
+}
+
 function vTraffic() {
-  if (LIVE) return head('Truy cập web', 'Google Analytics 4 và Microsoft Clarity.') + '<div class="card"><h2>Chưa nối số liệu truy cập</h2><p class="sub" style="margin:0">Khi web bán hàng chính thức chạy và có mã GA4, Clarity trong Sheet › Cài đặt, trang này tự lấy số liệu mỗi sáng vào tab Truy cập.</p><ol class="steps-ol"><li>analytics.google.com › tạo thuộc tính "Sữa Chua Mướt" › lấy mã <b>G-…</b> và <b>Property ID</b>.</li><li>clarity.microsoft.com › tạo dự án › lấy <b>mã dự án</b> và tạo <b>mã xuất dữ liệu</b> (Settings › Data Export).</li><li>Dán 4 mã vào Sheet › Cài đặt.</li></ol></div>';
+  if (LIVE) return vTrafficLive();
   var days = UI.tr, t = traffic(days), sum = function (k) { return t.reduce(function (s, x) { return s + x[k]; }, 0); };
   var ph = sum('phien'), ng = sum('nguoi'), xem = sum('xem'), gio = sum('gio'), dat = sum('dat'), mua = sum('mua'), tra = sum('tra');
   var cr = ph ? mua / ph * 100 : 0, R = rng(99 + days), live = 3 + Math.floor(R() * 6);
@@ -918,7 +1025,7 @@ function vSet() {
 /* ===== Sự kiện ===== */
 document.addEventListener('click', function (e) {
   var sb = $('#n-sug'); if (sb && !sb.hidden && !e.target.closest('#n-sug,#n-dc')) sb.hidden = true;
-  var t = e.target.closest('[data-act],[data-of],[data-open],[data-pday],[data-kho],[data-kh],[data-month],[data-tr],[data-act2],[data-cust],[data-goto]');
+  var t = e.target.closest('[data-act],[data-of],[data-open],[data-pday],[data-kho],[data-kh],[data-month],[data-tr],[data-trl],[data-act2],[data-cust],[data-goto]');
   if (!t) return;
   if (t.dataset.goto !== undefined && t.dataset.goto) { if (t.getAttribute('href') === '#don-hang') UI.of = t.dataset.goto; if (t.getAttribute('href') === '#kho') UI.kho = t.dataset.goto; }
   if (t.dataset.of) { UI.of = t.dataset.of; render(); return; }
@@ -926,6 +1033,8 @@ document.addEventListener('click', function (e) {
   if (t.dataset.kho) { UI.kho = t.dataset.kho; render(); return; }
   if (t.dataset.kh) { UI.kh = t.dataset.kh; render(); return; }
   if (t.dataset.tr) { UI.tr = +t.dataset.tr; render(); return; }
+  if (t.dataset.trl) { TRL.days = +t.dataset.trl; TRL.data = null; render(); return; }
+  if (t.dataset.act2 === 'trfresh') { loadTraffic(true); render(); return; }
   if (t.dataset.act2 === 'clarity') { if (TR.manual > 0) { TR.manual--; TR.at = stamp(); render(); toast('Đã lấy số liệu Clarity mới'); } else toast('Hết 2 lượt làm mới hôm nay. Clarity tự cập nhật lúc 6:00 sáng mai'); return; }
   if (t.dataset.month !== undefined) { UI.month = +t.dataset.month; render(); return; }
   if (t.dataset.cust) { custDrawer(t.dataset.cust); return; }
