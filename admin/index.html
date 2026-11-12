@@ -1002,6 +1002,7 @@ async function boot() {
     google.accounts.id.initialize({ client_id: CLIENT, callback: function (r) { token = r.credential; try { sessionStorage.setItem(TKEY, token); } catch (e) {} start(); }, auto_select: true, cancel_on_tap_outside: false });
     if (token) start(); else showLogin();
   };
+  s.onerror = function () { gate('<p class="neg">Không tải được nút đăng nhập Google.</p><p class="sub">Tắt chặn quảng cáo / chặn theo dõi cho trang này rồi tải lại.</p>'); };
   document.head.appendChild(s);
 }
 function showLogin(msg) {
@@ -1009,7 +1010,16 @@ function showLogin(msg) {
   google.accounts.id.renderButton($('#gbtn'), { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with', locale: 'vi' });
   google.accounts.id.prompt();
 }
-async function start() { gate('<p>Đang tải dữ liệu từ Google Sheet…</p>'); await refresh(); ungate(); }
+var ERRMSG = { noclient: 'Sheet › Cài đặt chưa có Client ID.', server: 'Máy chủ Apps Script báo lỗi khi đọc Sheet.', busy: 'Sheet đang bận, thử lại sau ít giây.', action: 'Thao tác không hợp lệ.', json: 'Dữ liệu gửi đi bị lỗi.' };
+async function start() {
+  gate('<p>Đang tải dữ liệu từ Google Sheet…</p>');
+  try { await refresh(); ungate(); }
+  catch (e) {
+    if (e && (e.error === 'auth' || e.error === 'denied')) return;
+    var m = e && e.error ? (ERRMSG[e.error] || e.error) + (e.msg ? ' <code>' + esc(e.msg) + '</code>' : '') : 'Không đọc được phản hồi từ máy chủ. <code>' + esc(String(e && e.message || e)) + '</code>';
+    gate('<p class="neg">Chưa tải được dữ liệu.</p><p class="sub">' + m + '</p><p class="sub">Chụp màn hình này gửi Claude. <button type="button" onclick="location.reload()">Thử lại</button> <button type="button" onclick="logout()">Đăng xuất</button></p>');
+  }
+}
 async function refresh() {
   var r = await api('load');
   ME = r.me; SHEET = r.sheetUrl; ingest(r.data); render();
