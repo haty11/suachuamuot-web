@@ -24,6 +24,10 @@
   function ls(key, v) { try { if (v === undefined) { var x = localStorage.getItem(key); return x ? JSON.parse(x) : null; } if (v === null) localStorage.removeItem(key); else localStorage.setItem(key, JSON.stringify(v)); } catch (e) { return null; } }
   function set(sel, v, root) { $$('[data-o="' + sel + '"]', root).forEach(function (e) { e.textContent = v; }); }
   function track(ev, p) { try { if (window.gtag) gtag('event', ev, p || {}); } catch (e) {} }
+  function say(msg) {
+    var l = $('#sr-live'); if (!l) { l = document.createElement('div'); l.id = 'sr-live'; l.className = 'sr'; l.setAttribute('aria-live', 'polite'); document.body.appendChild(l); }
+    clearTimeout(l._h); l._h = setTimeout(function () { l.textContent = msg; }, 250);
+  }
   function toast(msg, sk) {
     var t = $('#toast'); if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
     t.innerHTML = (sk ? '<img class="stk" src="/img/stk/' + sk + '.webp" alt="" width="40" height="40">' : '') + '<span></span>'; t.lastChild.textContent = msg; t.style.opacity = '1'; t.hidden = false; clearTimeout(t._h); t._h = setTimeout(function () { t.style.opacity = '0'; }, 2400);
@@ -150,11 +154,12 @@
     }
     root.addEventListener('click', function (e) {
       var b = e.target.closest('button'); if (!b) return;
-      if (b.dataset.pick) { var p = b.dataset.pick.split(':'); st[p[0]] = p[0] === 'size' ? +p[1] : p[1]; draw(); return; }
-      if (b.dataset.qty) { st.sl = Math.max(1, Math.min(30, st.sl + +b.dataset.qty)); draw(); return; }
+      if (b.dataset.pick) { var p = b.dataset.pick.split(':'); st[p[0]] = p[0] === 'size' ? +p[1] : p[1]; draw(); speak(); return; }
+      if (b.dataset.qty) { st.sl = Math.max(1, Math.min(30, st.sl + +b.dataset.qty)); draw(); speak(); return; }
       if (b.dataset.note) { var ta = $('[data-note-in]', root); if (ta && ta.value.indexOf(b.dataset.note) < 0) ta.value = (ta.value.trim() ? ta.value.trim().replace(/[,.]$/, '') + ', ' : '') + b.dataset.note; return; }
       if (b.dataset.add !== undefined) { add(); }
     });
+    function speak() { var f = fl(st.vi), u = unit(st.vi, st.cot, st.size); say((f.full || f.ngan) + ', cốt ' + (st.cot === 'A2' ? 'A2' : st.cot.toLowerCase()) + ', ' + st.size + 'g, ' + st.sl + ' hũ. Tạm tính ' + fmt(u * st.sl)); }
     function add() {
       var ta = $('[data-note-in]', root);
       addCart({ t: 'le', vi: st.vi, cot: st.cot, size: st.size, sl: st.sl, note: ta ? ta.value.trim().slice(0, 150) : '' });
@@ -185,9 +190,10 @@
     function draw() {
       var it = item(), p = priceItem(it), c = cb(name);
       root.hidden = c.ban === false;
-      $$('[data-cot]', root).forEach(function (b) { var g = b.dataset.g || 'cot', cur = g === 'cot' ? st.cot : st[g].cot; b.classList.toggle('on', b.dataset.cot === cur); });
-      $$('[data-set]', root).forEach(function (b) { b.classList.toggle('on', +b.dataset.set === st.set); });
-      $$('[data-hv]', root).forEach(function (b) { var g = b.dataset.g; b.classList.toggle('on', st[g].vi === b.dataset.hv); });
+      var tg = function (b, on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); };
+      $$('[data-cot]', root).forEach(function (b) { var g = b.dataset.g || 'cot', cur = g === 'cot' ? st.cot : st[g].cot; tg(b, b.dataset.cot === cur); });
+      $$('[data-set]', root).forEach(function (b) { tg(b, +b.dataset.set === st.set); });
+      $$('[data-hv]', root).forEach(function (b) { var g = b.dataset.g; tg(b, st[g].vi === b.dataset.hv); });
       set('h250', fl(st.h250.vi).ngan, root); set('h450', fl(st.h450.vi).ngan, root);
       set('desc', itemMeta(it), root);
       set('price', fmt(p.gia), root); set('le', fmt(p.le), root); set('save', fmt(p.le - p.gia), root);
@@ -195,9 +201,10 @@
     }
     root.addEventListener('click', function (e) {
       var b = e.target.closest('button'); if (!b) return;
-      if (b.dataset.cot) { var g = b.dataset.g || 'cot'; if (g === 'cot') st.cot = b.dataset.cot; else st[g].cot = b.dataset.cot; draw(); return; }
-      if (b.dataset.set) { st.set = +b.dataset.set; draw(); return; }
-      if (b.dataset.hv) { st[b.dataset.g].vi = b.dataset.hv; draw(); return; }
+      var cs = function () { draw(); var it = item(), p = priceItem(it); say(name + ': ' + itemMeta(it) + '. Giá ' + fmt(p.gia)); };
+      if (b.dataset.cot) { var g = b.dataset.g || 'cot'; if (g === 'cot') st.cot = b.dataset.cot; else st[g].cot = b.dataset.cot; cs(); return; }
+      if (b.dataset.set) { st.set = +b.dataset.set; cs(); return; }
+      if (b.dataset.hv) { st[b.dataset.g].vi = b.dataset.hv; cs(); return; }
       if (b.dataset.addcombo !== undefined) { addCart(item()); toast('Đã thêm combo ' + name + ' vào giỏ', '03-ngon-cai'); }
     });
     onData(draw);
