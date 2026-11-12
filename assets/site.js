@@ -34,7 +34,8 @@
   function viOf(ten) { return D.vi.filter(function (v) { return v.ten === ten; })[0]; }
   function isMix(ten) { var v = viOf(ten); return !v || v.nhom !== 'Original'; }
   function unit(ten, cot, size) { return ((D.gia[cot] || {})[size] || 0) + (isMix(ten) ? D.mix : 0); }
-  function cb(ten) { return D.combos.filter(function (c) { return c.ten === ten; })[0] || {}; }
+  function cbKey(t) { t = String(t || '').toLowerCase(); return /thử/.test(t) ? 'thu' : /đủ/.test(t) ? 'du' : /kho[eẻ]|khỏe/.test(t) ? 'khoe' : t; }
+  function cb(ten) { return D.combos.filter(function (c) { return cbKey(c.ten) === cbKey(ten); })[0] || {}; }
   function vis() { return D.vi.filter(function (v) { return v.ban; }); }
   /** giá 1 món trong giỏ: {le (tổng giá lẻ), gia (thực trả), free} */
   function priceItem(it) {
@@ -42,7 +43,7 @@
     if (it.t !== 'combo') { le = unit(it.vi, it.cot, it.size); return { le: le * it.sl, gia: le * it.sl, free: false }; }
     c = cb(it.combo);
     if (/thử/i.test(it.combo)) { (it.vis || []).forEach(function (v) { le += unit(v, it.cot, 100); }); gia = it.cot === 'A2' ? c.giaA2 : c.giaTT; }
-    else if (/đủ vị/i.test(it.combo)) { vis().forEach(function (v) { le += unit(v.ten, it.cot, 100); }); gia = it.cot === 'A2' ? c.giaA2 : c.giaTT; }
+    else if (/đủ/i.test(it.combo)) { vis().forEach(function (v) { le += unit(v.ten, it.cot, 100); }); gia = it.cot === 'A2' ? c.giaA2 : c.giaTT; }
     else { (it.hu || []).forEach(function (h) { le += unit(h.vi, h.cot, h.size); }); gia = le - (c.giam || 0); }
     return { le: le * it.sl, gia: Math.min(le, gia) * it.sl, free: !!c.freeship };
   }
@@ -59,7 +60,7 @@
   }
   function totals(c) {
     var t = { le: 0, hang: 0, free: false, hu: 0 };
-    (c || cart()).forEach(function (it) { var p = priceItem(it); t.le += p.le; t.hang += p.gia; t.free = t.free || p.free; t.hu += it.t === 'combo' ? it.sl * (/đủ vị/i.test(it.combo) ? vis().length : /thử/i.test(it.combo) ? 3 : 2) : it.sl; });
+    (c || cart()).forEach(function (it) { var p = priceItem(it); t.le += p.le; t.hang += p.gia; t.free = t.free || p.free; t.hu += it.t === 'combo' ? it.sl * (/đủ/i.test(it.combo) ? vis().length : /thử/i.test(it.combo) ? 3 : 2) : it.sl; });
     t.giam = t.le - t.hang; return t;
   }
   function badge() { var n = totals().hu; $$('[data-o="cartn"]').forEach(function (e) { e.textContent = n; }); }
@@ -69,7 +70,7 @@
   }
   function itemMeta(it) {
     if (it.t !== 'combo') return it.cot + ' · ' + it.size + 'g · ' + fmt(unit(it.vi, it.cot, it.size)) + '/hũ';
-    if (/đủ vị/i.test(it.combo)) return it.cot + ' · 6 hũ 100g, đủ 6 vị';
+    if (/đủ/i.test(it.combo)) return it.cot + ' · 6 hũ 100g, đủ 6 vị';
     if (/thử/i.test(it.combo)) return it.cot + ' · 100g: ' + (it.vis || []).map(function (v) { return fl(v).ngan; }).join(', ');
     return (it.hu || []).map(function (h) { return h.size + 'g ' + fl(h.vi).ngan + ' (' + h.cot.toLowerCase() + ')'; }).join(' + ');
   }
@@ -178,7 +179,7 @@
     var SETS = [['Original ít đường', 'Dâu sấy', 'Trà Earl Grey'], ['Original ít đường', 'Mè đen', 'Nhãn sấy']];
     function item() {
       if (/thử/i.test(name)) return { t: 'combo', combo: name, cot: st.cot, vis: SETS[st.set], sl: 1 };
-      if (/đủ vị/i.test(name)) return { t: 'combo', combo: name, cot: st.cot, sl: 1 };
+      if (/đủ/i.test(name)) return { t: 'combo', combo: name, cot: st.cot, sl: 1 };
       return { t: 'combo', combo: name, hu: [{ vi: st.h250.vi, cot: st.h250.cot, size: 250 }, { vi: st.h450.vi, cot: st.h450.cot, size: 450 }], sl: 1 };
     }
     function draw() {
