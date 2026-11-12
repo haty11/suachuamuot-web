@@ -906,7 +906,7 @@ document.addEventListener('click', function (e) {
   var a = t.dataset.act, o = UI.open && S.orders.find(function (x) { return x.ma === UI.open; });
   if (a === 'bg') { if (e.target === t) closeDrawer(); return; }
   if (a === 'close') { closeDrawer(); return; }
-  if (a === 'reset') { if (LIVE) { refresh().then(function () { toast('Đã tải lại dữ liệu từ Sheet'); }); return; } resetAll(); render(); toast('Đã đặt lại dữ liệu mẫu'); return; }
+  if (a === 'reset') { if (LIVE) { refresh(true).then(function () { toast('Đã tải lại dữ liệu từ Sheet'); }); return; } resetAll(); render(); toast('Đã đặt lại dữ liệu mẫu'); return; }
   if (a === 'logout') { logout(); return; }
   if (a === 'new-order') { NEWO = null; newOrderDrawer(); return; }
   if (a === 'nline') { NEWO.lines.push({ vi: VI[0].id, cot: COT[0].id, size: 100, sl: 1 }); newOrderDrawer(); return; }
@@ -1068,8 +1068,8 @@ function apply(r) {
   if (!editing) { render(); if (UI.open && !$('#drawer').hidden) orderDrawer(UI.open); }
   var f = $('.side .foot'); if (f) f.innerHTML = '<a href="' + esc(SHEET) + '" target="_blank" rel="noopener" style="color:var(--side-ink);font-weight:600">Mở Google Sheet ↗</a><span>' + esc(ME.email) + '</span><button type="button" data-act="reset">Tải lại dữ liệu</button><button type="button" data-act="logout">Đăng xuất</button>';
 }
-async function refresh() {
-  var r = await api('load');
+async function refresh(fresh) {
+  var r = await api('load', fresh ? { fresh: 1 } : null);
   ls(DKEY, JSON.stringify({ email: r.me.email, r: r }));
   apply(JSON.parse(JSON.stringify(r)));
 }
