@@ -159,6 +159,15 @@ textarea.inp{padding:8px 12px;min-height:72px;width:100%;resize:vertical}
 .gbox{background:var(--surface);color:var(--ink);border-radius:20px;padding:28px;max-width:440px;width:100%;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow)}
 .gbox .gbrand{font:800 26px/1.1 var(--display);color:var(--accent)}
 .gbox p{margin:0}
+#gate.ld{background:var(--side)}
+#gate.ld .gbox{background:transparent;box-shadow:none;align-items:center;text-align:center}
+#gate.ld .gbox .gbrand,#gate.ld .gbox .sub{display:none}
+.ldr{display:flex;flex-direction:column;align-items:center;gap:14px}
+.ava{width:76px;height:76px;border-radius:50%;object-fit:cover;box-shadow:0 0 0 4px var(--accent),0 10px 24px rgba(0,0,0,.35);animation:nay .9s cubic-bezier(.3,0,.4,1) infinite alternate}
+.ava0{display:flex;align-items:center;justify-content:center;background:var(--accent);color:#fff;font:800 32px/1 var(--display)}
+.ldt{color:var(--side-ink);font-weight:600;letter-spacing:.02em}
+@keyframes nay{0%{transform:translateY(0) scale(1,1)}80%{transform:translateY(-22px) scale(.97,1.03)}100%{transform:translateY(-26px) scale(1,1)}}
+@media (prefers-reduced-motion:reduce){.ava{animation:none}}
 .steps-ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px}
 .steps-ol code{background:var(--sunk);padding:1px 6px;border-radius:6px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -178,8 +187,7 @@ textarea.inp{padding:8px 12px;min-height:72px;width:100%;resize:vertical}
 <div id="drawer" hidden></div>
 <div id="gate" hidden></div>
 <div id="toast" class="toast" hidden></div>
-<script src="config.js?v=1"></script><script>
-/* ===== Dữ liệu & mô hình (khớp các bảng Google Sheet) ===== */
+<script src="config.js?v=1"></script><script>/* ===== Dữ liệu & mô hình (khớp các bảng Google Sheet) ===== */
 var VI = [
   { id: 'khong-duong', ten: 'Original không đường', nhom: 'Original', cpv: 0 },
   { id: 'it-duong', ten: 'Original ít đường', nhom: 'Original', cpv: 1000 },
@@ -977,15 +985,15 @@ function slug(s) { return String(s).toLowerCase().normalize('NFD').replace(/[̀-
 function cotId(ten) { return /thanh/i.test(ten) ? 'tt' : /a2/i.test(ten) ? 'a2' : slug(ten); }
 function viId(ten) { var v = VI.find(function (x) { return x.ten === ten; }); return v ? v.id : slug(ten); }
 
-function gate(html) { var g = $('#gate'); g.innerHTML = '<div class="gbox"><b class="gbrand">Mướt Mườn Mượt</b><span class="sub">Trang quản lý bán hàng</span>' + html + '</div>'; g.hidden = false; }
+function gate(html) { var g = $('#gate'); g.classList.remove('ld'); g.innerHTML = '<div class="gbox"><b class="gbrand">Mướt Mườn Mượt</b><span class="sub">Trang quản lý bán hàng</span>' + html + '</div>'; g.hidden = false; }
 function ungate() { $('#gate').hidden = true; }
 function jwtExp(t) { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000; } catch (e) { return 0; } }
 
 async function api(action, data) {
   var r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ admin: 1, token: token, action: action }, data || {})) }).then(function (x) { return x.json(); });
   if (!r.ok) {
-    if (r.error === 'auth') { token = ''; try { sessionStorage.removeItem(TKEY); } catch (e) {} showLogin('Phiên đăng nhập đã hết hạn, sếp đăng nhập lại nhé.'); }
-    if (r.error === 'denied') { token = ''; try { sessionStorage.removeItem(TKEY); google.accounts.id.disableAutoSelect(); } catch (e) {} gate('<p>Tài khoản <b>' + esc(r.email) + '</b> chưa được cấp quyền.</p><p class="sub">Thêm email này vào Sheet › Cài đặt › "Email được vào trang quản lý".</p>'); }
+    if (r.error === 'auth') { token = ''; ls(TKEY, null); showLogin('Phiên đăng nhập đã hết hạn, sếp đăng nhập lại nhé.'); }
+    if (r.error === 'denied') { token = ''; ls(TKEY, null); ls(DKEY, null); try { google.accounts.id.disableAutoSelect(); } catch (e) {} gate('<p>Tài khoản <b>' + esc(r.email) + '</b> chưa được cấp quyền.</p><p class="sub">Thêm email này vào Sheet › Cài đặt › "Email được vào trang quản lý".</p>'); }
     throw r;
   }
   return r;
@@ -998,44 +1006,74 @@ function sync(action, data) {
 var _db = {};
 function syncLater(key, action, data) { clearTimeout(_db[key]); _db[key] = setTimeout(function () { sync(action, data); }, 800); }
 
-async function boot() {
-  if (!LIVE) { load(); save(); render(); return; }
-  gate('<p>Đang kết nối…</p>');
-  var cfg;
-  try { cfg = await fetch(API + '?action=admincfg').then(function (r) { return r.json(); }); }
-  catch (e) { gate('<p class="neg">Không kết nối được máy chủ. Kiểm tra mạng rồi tải lại trang.</p>'); return; }
-  CLIENT = cfg.clientId || '';
-  if (!CLIENT) { gate('<p>Trang quản lý chưa được bật đăng nhập Google. Làm 1 lần:</p><ol class="steps-ol"><li>Vào <b>console.cloud.google.com</b> › tạo dự án "Sua Chua Muot".</li><li>APIs &amp; Services › <b>OAuth consent screen</b> › External › điền tên app, email › lưu.</li><li>Credentials › <b>Create credentials › OAuth client ID</b> › Web application.</li><li>Authorized JavaScript origins: <code>https://suachuamuot.com</code> › Create.</li><li>Chép Client ID, dán vào Sheet › tab <b>Cài đặt</b> › dòng <b>Admin · Google Client ID</b>.</li></ol>'); return; }
-  try { var t = sessionStorage.getItem(TKEY); if (t && jwtExp(t) > Date.now() + 60e3) token = t; } catch (e) {}
+/* Khởi động nhanh: dùng lại Client ID, phiên đăng nhập và dữ liệu lần trước; tải lại ngầm */
+var CKEY = 'mmm-adm-cid', DKEY = 'mmm-adm-data', PKEY = 'mmm-adm-pic';
+function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } }
+function jwtPay(t) { try { return JSON.parse(decodeURIComponent(escape(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { return {}; } }
+function loading() {
+  var pic = ls(PKEY);
+  gate('<div class="ldr">' + (pic ? '<img class="ava" src="' + esc(pic) + '" alt="" referrerpolicy="no-referrer">' : '<span class="ava ava0">M</span>') + '<span class="ldt">Đang tải…</span></div>');
+  $('#gate').classList.add('ld');
+}
+function setToken(t) { token = t; ls(TKEY, t); var p = jwtPay(t).picture; if (p) ls(PKEY, p); }
+var GSI = 0;
+function loadGsi() {
+  if (GSI) return; GSI = 1;
   var s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.async = true;
   s.onload = function () {
-    google.accounts.id.initialize({ client_id: CLIENT, callback: function (r) { token = r.credential; try { sessionStorage.setItem(TKEY, token); } catch (e) {} start(); }, auto_select: true, cancel_on_tap_outside: false });
-    if (token) start(); else showLogin();
+    google.accounts.id.initialize({ client_id: CLIENT, callback: function (r) { setToken(r.credential); start(); }, auto_select: true, cancel_on_tap_outside: false });
+    if (!token) showLogin();
   };
-  s.onerror = function () { gate('<p class="neg">Không tải được nút đăng nhập Google.</p><p class="sub">Tắt chặn quảng cáo / chặn theo dõi cho trang này rồi tải lại.</p>'); };
+  s.onerror = function () { if (!token) gate('<p class="neg">Không tải được nút đăng nhập Google.</p><p class="sub">Tắt chặn quảng cáo / chặn theo dõi cho trang này rồi tải lại.</p>'); };
   document.head.appendChild(s);
 }
+function noClient() { gate('<p>Trang quản lý chưa được bật đăng nhập Google. Làm 1 lần:</p><ol class="steps-ol"><li>Vào <b>console.cloud.google.com</b> › tạo dự án "Sua Chua Muot".</li><li>APIs &amp; Services › <b>OAuth consent screen</b> › External › điền tên app, email › lưu.</li><li>Credentials › <b>Create credentials › OAuth client ID</b> › Web application.</li><li>Authorized JavaScript origins: <code>https://suachuamuot.com</code> › Create.</li><li>Chép Client ID, dán vào Sheet › tab <b>Cài đặt</b> › dòng <b>Admin · Google Client ID</b>.</li></ol>'); }
+async function boot() {
+  if (!LIVE) { load(); save(); render(); return; }
+  var t = ls(TKEY); if (t && jwtExp(t) > Date.now() + 60e3) token = t; else if (t) ls(TKEY, null);
+  CLIENT = ls(CKEY) || '';
+  if (token) start(); else loading();
+  if (CLIENT) loadGsi();
+  try {
+    var cfg = await fetch(API + '?action=admincfg').then(function (r) { return r.json(); });
+    var cid = cfg.clientId || '';
+    if (!cid) { ls(CKEY, null); if (!token) noClient(); return; }
+    ls(CKEY, cid);
+    if (cid !== CLIENT) { CLIENT = cid; if (GSI) location.reload(); else loadGsi(); }
+  } catch (e) { if (!CLIENT && !token) gate('<p class="neg">Không kết nối được máy chủ. Kiểm tra mạng rồi tải lại trang.</p>'); }
+}
 function showLogin(msg) {
+  $('#gate').classList.remove('ld');
   gate((msg ? '<p class="neg">' + esc(msg) + '</p>' : '') + '<p>Đăng nhập bằng tài khoản Google đã được cấp quyền.</p><div id="gbtn"></div>');
+  if (!window.google || !google.accounts) { loadGsi(); return; }
   google.accounts.id.renderButton($('#gbtn'), { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with', locale: 'vi' });
   google.accounts.id.prompt();
 }
 var ERRMSG = { noclient: 'Sheet › Cài đặt chưa có Client ID.', server: 'Máy chủ Apps Script báo lỗi khi đọc Sheet.', busy: 'Sheet đang bận, thử lại sau ít giây.', action: 'Thao tác không hợp lệ.', json: 'Dữ liệu gửi đi bị lỗi.' };
 async function start() {
-  gate('<p>Đang tải dữ liệu từ Google Sheet…</p>');
+  var c = ls(DKEY), cached = false;
+  if (c && !ME) { try { var j = JSON.parse(c); if (j.email === jwtPay(token).email) { apply(j.r); cached = true; ungate(); } } catch (e) {} }
+  if (!cached) loading();
   try { await refresh(); ungate(); }
   catch (e) {
     if (e && (e.error === 'auth' || e.error === 'denied')) return;
+    if (cached) { toast('Chưa cập nhật được từ Sheet, đang hiện dữ liệu lần trước.'); return; }
+    $('#gate').classList.remove('ld');
     var m = e && e.error ? (ERRMSG[e.error] || e.error) + (e.msg ? ' <code>' + esc(e.msg) + '</code>' : '') : 'Không đọc được phản hồi từ máy chủ. <code>' + esc(String(e && e.message || e)) + '</code>';
     gate('<p class="neg">Chưa tải được dữ liệu.</p><p class="sub">' + m + '</p><p class="sub">Chụp màn hình này gửi Claude. <button type="button" onclick="location.reload()">Thử lại</button> <button type="button" onclick="logout()">Đăng xuất</button></p>');
   }
 }
-async function refresh() {
-  var r = await api('load');
-  ME = r.me; SHEET = r.sheetUrl; ingest(r.data); render();
+function apply(r) {
+  ME = r.me; SHEET = r.sheetUrl; ingest(r.data); var ae = document.activeElement, editing = ae && $('#drawer').contains(ae) && /INPUT|TEXTAREA|SELECT/.test(ae.tagName);
+  if (!editing) { render(); if (UI.open && !$('#drawer').hidden) orderDrawer(UI.open); }
   var f = $('.side .foot'); if (f) f.innerHTML = '<a href="' + esc(SHEET) + '" target="_blank" rel="noopener" style="color:var(--side-ink);font-weight:600">Mở Google Sheet ↗</a><span>' + esc(ME.email) + '</span><button type="button" data-act="reset">Tải lại dữ liệu</button><button type="button" data-act="logout">Đăng xuất</button>';
 }
-function logout() { try { google.accounts.id.disableAutoSelect(); sessionStorage.removeItem(TKEY); } catch (e) {} token = ''; showLogin(); }
+async function refresh() {
+  var r = await api('load');
+  ls(DKEY, JSON.stringify({ email: r.me.email, r: r }));
+  apply(JSON.parse(JSON.stringify(r)));
+}
+function logout() { try { google.accounts.id.disableAutoSelect(); } catch (e) {} [TKEY, DKEY, PKEY].forEach(function (k) { ls(k, null); }); try { sessionStorage.removeItem(TKEY); } catch (e) {} token = ''; ME = null; showLogin(); }
 
 /* Chuyển dữ liệu Sheet sang dạng trang dùng */
 function ingest(d) {
@@ -1071,5 +1109,4 @@ function ingest(d) {
 }
 
 boot();
-
 </script></body></html>
