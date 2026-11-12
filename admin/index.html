@@ -287,6 +287,19 @@ var KHACH_MAU = [
   ['Tạ Minh Châu', '0369444666', '44 Huỳnh Thúc Kháng, Phường Láng', 0.9]
 ];
 
+var COMBOS = [{ ten: 'Mướt Ăn Thử', giaTT: 115000, giaA2: 125000, giam: 0, freeship: false, ban: true }, { ten: 'Mướt Đủ Vị', giaTT: 230000, giaA2: 260000, giam: 20000, freeship: true, ban: true }, { ten: 'Mướt Ăn Khoẻ', giaTT: 0, giaA2: 0, giam: 15000, freeship: true, ban: true }];
+var CB_SETS = [['it-duong', 'dau-say', 'earl-grey'], ['it-duong', 'me-den', 'nhan-say']];
+function cbOf(ten) { return COMBOS.find(function (c) { return c.ten === ten; }) || {}; }
+/* 1 combo → các hũ (giá lẻ) + số tiền giảm, giống hệt cách web tính */
+function comboLines(c) {
+  var cb = cbOf(c.combo), items, le, giam;
+  if (/thử/i.test(c.combo)) items = CB_SETS[c.set || 0].filter(viOf).map(function (v) { return mkLine(v, c.cot, 100, 1, c.combo); });
+  else if (/đủ vị/i.test(c.combo)) items = VI.filter(function (v) { return v.ban !== false; }).map(function (v) { return mkLine(v.id, c.cot, 100, 1, c.combo); });
+  else items = [mkLine(c.h250.vi, c.h250.cot, 250, 1, c.combo), mkLine(c.h450.vi, c.h450.cot, 450, 1, c.combo)];
+  le = items.reduce(function (s, x) { return s + x.gia; }, 0);
+  giam = /khoẻ/i.test(c.combo) ? (cb.giam || 0) : Math.max(0, le - ((c.cot === 'a2' ? cb.giaA2 : cb.giaTT) || le));
+  return { items: items, le: le, giam: giam, gia: le - giam, von: items.reduce(function (s, x) { return s + x.von; }, 0), free: !!cb.freeship };
+}
 function mkLine(vi, cot, size, sl, combo, note) {
   var gv = giaVon(vi, cot, size);
   return { vi: vi, cot: cot, size: size, sl: sl, gia: giaBan(vi, cot, size), von: Math.round(gv.tong), combo: combo || '', note: note || '' };
@@ -461,7 +474,7 @@ var ICON = {
 };
 var PAGES = [
   ['tong-quan', 'Tổng quan', 'home'], ['don-hang', 'Đơn hàng', 'order'], ['san-xuat', 'Sản xuất', 'prod'],
-  ['kho', 'Kho', 'box'], ['gia-von', 'Công thức & giá vốn', 'recipe'], ['khach-hang', 'Khách hàng', 'user'],
+  ['kho', 'Kho', 'box'], ['gia-von', 'Giá bán & giá vốn', 'recipe'], ['khach-hang', 'Khách hàng', 'user'],
   ['chi-phi', 'Chi phí', 'cash'], ['bao-cao', 'Báo cáo lãi lỗ', 'chart'], ['truy-cap', 'Truy cập web', 'eye'], ['cai-dat', 'Cài đặt & dữ liệu', 'gear']
 ];
 var UI = { tr: 7, of: 'can-xu-ly', q: '', pday: 0, kho: 'nl', kh: 'Tất cả', month: 0, open: null };
@@ -661,6 +674,7 @@ function newOrderDrawer() {
   if (!NEWO) NEWO = { ten: '', sdt: '', nhan: 'Giao', diachi: '', km: '', ngay: iso(addD(TODAY, 1)), slot: SLOTS[0], kenh: 'Zalo', lines: [{ vi: (VI[1] || VI[0]).id, cot: COT[0].id, size: 250, sl: 1 }], err: '' };
   var t = { hang: 0, von: 0 };
   NEWO.lines.forEach(function (l) { t.hang += giaBan(l.vi, l.cot, l.size) * l.sl; t.von += Math.round(giaVon(l.vi, l.cot, l.size).tong) * l.sl; });
+  NEWO.combos = NEWO.combos || []; t.giam = 0; NEWO.combos.forEach(function (c) { var r = comboLines(c); t.hang += r.gia; t.von += r.von; t.giam += r.giam; });
   var opt = function (arr, v) { return arr.map(function (a) { return '<option value="' + a[0] + '"' + (String(a[0]) === String(v) ? ' selected' : '') + '>' + a[1] + '</option>'; }).join(''); };
   var days = [0, 1, 2, 3].map(function (i) { var d = iso(addD(TODAY, i)); return [d, dayName(d)]; });
   openDrawer('<div class="ph"><div><h2>Tạo đơn</h2><div class="sub">Cho đơn nhận qua Zalo, điện thoại hoặc khách mua trực tiếp</div></div><button class="x" type="button" data-act="close" aria-label="Đóng">×</button></div>' +
@@ -678,10 +692,18 @@ function newOrderDrawer() {
         '<select class="inp" data-l="' + i + '" data-f="cot" aria-label="Cốt" style="flex:1 1 90px">' + opt(COT.map(function (c) { return [c.id, c.ten]; }), l.cot) + '</select>' +
         '<select class="inp" data-l="' + i + '" data-f="size" aria-label="Dung tích" style="flex:1 1 70px">' + opt(SIZES.map(function (s) { return [s, s + 'g']; }), l.size) + '</select>' +
         '<input class="inp num" data-l="' + i + '" data-f="sl" type="number" min="1" value="' + l.sl + '" aria-label="Số lượng" style="width:64px">' +
-        '<span style="flex:1 1 80px;text-align:right">' + money(giaBan(l.vi, l.cot, l.size) * l.sl) + '</span>' + (NEWO.lines.length > 1 ? '<button class="x" type="button" data-act="dline" data-i="' + i + '" aria-label="Bỏ dòng">×</button>' : '') + '</div>';
+        '<span style="flex:1 1 80px;text-align:right">' + money(giaBan(l.vi, l.cot, l.size) * l.sl) + '</span>' + (NEWO.lines.length > 1 || NEWO.combos.length ? '<button class="x" type="button" data-act="dline" data-i="' + i + '" aria-label="Bỏ dòng">×</button>' : '') + '</div>';
     }).join('') +
-    '<div class="pl"><div><span>Tiền hàng</span><b>' + money(t.hang) + '</b></div><div class="ind"><span>Giá vốn dự kiến</span><span>' + money(t.von) + '</span></div><div class="ind"><span>Lãi gộp</span><span class="pos">' + money(t.hang - t.von) + '</span></div></div>' +
-    '<div class="note">Giá lẻ theo bảng giá. Combo (Ăn Thử, Đủ Vị, Ăn Khoẻ) đặt trên web sẽ tự áp giảm.</div></div>' +
+    '<div class="toolbar" style="margin-top:14px"><h3>Combo</h3><button class="btn sm" type="button" data-act="ncombo">+ Thêm combo</button></div>' +
+    NEWO.combos.map(function (c, i) {
+      var r = comboLines(c), vopt = VI.map(function (v) { return [v.id, v.ten]; }), copt = COT.map(function (x) { return [x.id, x.ten]; });
+      var body = /khoẻ/i.test(c.combo) ? '<div class="toolbar" style="gap:6px"><span class="sub" style="width:44px">250g</span><select class="inp" data-c="' + i + '" data-cf="h250.vi" aria-label="Vị hũ 250g" style="flex:2 1 140px">' + opt(vopt, c.h250.vi) + '</select><select class="inp" data-c="' + i + '" data-cf="h250.cot" aria-label="Cốt hũ 250g" style="flex:1 1 90px">' + opt(copt, c.h250.cot) + '</select></div>' +
+          '<div class="toolbar" style="gap:6px"><span class="sub" style="width:44px">450g</span><select class="inp" data-c="' + i + '" data-cf="h450.vi" aria-label="Vị hũ 450g" style="flex:2 1 140px">' + opt(vopt, c.h450.vi) + '</select><select class="inp" data-c="' + i + '" data-cf="h450.cot" aria-label="Cốt hũ 450g" style="flex:1 1 90px">' + opt(copt, c.h450.cot) + '</select></div>'
+        : '<div class="toolbar" style="gap:6px"><select class="inp" data-c="' + i + '" data-cf="cot" aria-label="Cốt" style="flex:1 1 100px">' + opt(copt, c.cot) + '</select>' + (/thử/i.test(c.combo) ? '<select class="inp" data-c="' + i + '" data-cf="set" aria-label="Bộ vị" style="flex:2 1 200px">' + opt(CB_SETS.map(function (s, k) { return [k, s.map(function (id) { return (viOf(id) || {}).ten || id; }).join(' · ')]; }), c.set) + '</select>' : '<span class="sub" style="flex:2 1 200px">' + r.items.length + ' hũ 100g, đủ vị</span>') + '</div>';
+      return '<div class="card flat" style="padding:12px;margin-top:8px;display:flex;flex-direction:column;gap:6px"><div class="toolbar" style="gap:6px"><select class="inp" data-c="' + i + '" data-cf="combo" aria-label="Combo" style="flex:2 1 160px">' + opt(COMBOS.filter(function (x) { return x.ban !== false || x.ten === c.combo; }).map(function (x) { return [x.ten, x.ten]; }), c.combo) + '</select><span style="flex:1 1 120px;text-align:right"><b>' + money(r.gia) + '</b>' + (r.giam ? ' <span class="sub">giảm ' + money(r.giam) + '</span>' : '') + (r.free ? ' <span class="pill p-good">Freeship</span>' : '') + '</span><button class="x" type="button" data-act="dcombo" data-i="' + i + '" aria-label="Bỏ combo">×</button></div>' + body + '</div>';
+    }).join('') +
+    '<div class="pl"><div><span>Tiền hàng</span><b>' + money(t.hang) + '</b></div>' + (t.giam ? '<div class="ind"><span>Đã trừ giảm giá combo</span><span>−' + money(t.giam) + '</span></div>' : '') + '<div class="ind"><span>Giá vốn dự kiến</span><span>' + money(t.von) + '</span></div><div class="ind"><span>Lãi gộp</span><span class="pos">' + money(t.hang - t.von) + '</span></div></div>' +
+    '<div class="note">Giá lẻ và combo lấy theo bảng giá trong Sheet, tính giống hệt đơn đặt trên web.</div></div>' +
     (NEWO.err ? '<div class="confirm">' + esc(NEWO.err) + '</div>' : '') +
     '<div class="chips"><button class="btn pri" type="button" data-act="create">Tạo đơn</button><button class="btn ghost" type="button" data-act="close">Để sau</button></div>');
 }
@@ -751,6 +773,38 @@ function nhapDrawer(id) {
 }
 
 /* ---------- Công thức & giá vốn ---------- */
+var PE = null;
+function peInit() { if (PE) return; PE = { gia: {}, mix: MIX, combos: COMBOS.map(function (c) { return Object.assign({}, c); }), vi: VI.map(function (v) { return { id: v.id, ten: v.ten, ban: v.ban !== false }; }) }; COT.forEach(function (c) { PE.gia[c.ten] = { 100: c.gia[100], 250: c.gia[250], 450: c.gia[450] }; }); }
+function peDirty() { if (!PE) return false; var d = PE.mix !== MIX; COT.forEach(function (c) { SIZES.forEach(function (s) { if (PE.gia[c.ten][s] !== c.gia[s]) d = true; }); }); PE.combos.forEach(function (x, i) { var o = COMBOS[i]; if (x.giaTT !== o.giaTT || x.giaA2 !== o.giaA2 || x.giam !== o.giam || x.freeship !== o.freeship || x.ban !== o.ban) d = true; }); PE.vi.forEach(function (x, i) { if (x.ban !== (VI[i].ban !== false)) d = true; }); return d; }
+function vPrice() {
+  peInit();
+  var mixHi = VI.filter(function (v) { return v.nhom === 'Mix'; }).sort(function (a, b) { return b.cpv - a.cpv; })[0], org = VI.filter(function (v) { return v.nhom !== 'Mix'; })[0];
+  var cell = function (gb, gv) { var p = gb ? (gb - gv) / gb * 100 : 0; return '<span class="pill ' + (p < 45 ? 'p-bad' : p < 55 ? 'p-warn' : 'p-good') + '">' + Math.round(p) + '%</span>'; };
+  var rows = COT.map(function (c) { return SIZES.map(function (s) {
+    var g = PE.gia[c.ten][s], go = org ? Math.round(giaVon(org.id, c.id, s).tong) : 0, gm = mixHi ? Math.round(giaVon(mixHi.id, c.id, s).tong) : 0;
+    return '<tr><td>' + c.ten + '</td><td class="c">' + s + 'g</td><td class="r"><input class="inp num" type="number" min="0" step="1000" data-pe="g|' + esc(c.ten) + '|' + s + '" value="' + g + '" aria-label="Giá ' + esc(c.ten) + ' ' + s + 'g"></td><td class="r">' + money(g + PE.mix) + '</td><td class="r">' + cell(g, go) + '</td><td class="r">' + cell(g + PE.mix, gm) + '</td></tr>'; }).join(''); }).join('');
+  var cbs = PE.combos.map(function (x, i) { var k = /khoẻ/i.test(x.ten);
+    return '<tr><td><b>' + esc(x.ten) + '</b></td>' + (k ? '<td colspan="2" class="sub">Giá lẻ 2 hũ − số giảm</td>' : '<td class="r"><input class="inp num" type="number" min="0" step="1000" data-pe="cb|' + i + '|giaTT" value="' + x.giaTT + '" aria-label="Giá ' + esc(x.ten) + ' thanh trùng"></td><td class="r"><input class="inp num" type="number" min="0" step="1000" data-pe="cb|' + i + '|giaA2" value="' + x.giaA2 + '" aria-label="Giá ' + esc(x.ten) + ' A2"></td>') +
+      '<td class="r">' + (k ? '<input class="inp num" type="number" min="0" step="1000" data-pe="cb|' + i + '|giam" value="' + x.giam + '" aria-label="Giảm ' + esc(x.ten) + '">' : (x.giam ? money(x.giam) : '—')) + '</td><td class="c"><input type="checkbox" data-pe="cbf|' + i + '"' + (x.freeship ? ' checked' : '') + ' aria-label="Freeship"></td><td class="c"><input type="checkbox" data-pe="cbb|' + i + '"' + (x.ban ? ' checked' : '') + ' aria-label="Đang bán"></td></tr>'; }).join('');
+  var vis = PE.vi.map(function (x, i) { return '<label class="chip" style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" data-pe="vib|' + i + '"' + (x.ban ? ' checked' : '') + '> ' + esc(x.ten) + '</label>'; }).join(' ');
+  var dirty = peDirty();
+  return '<div class="card"><div class="toolbar"><h2>Giá bán</h2><div class="chips">' + (dirty ? '<span class="pill p-warn">Chưa lưu</span><button class="btn ghost sm" type="button" data-act="pe-reset">Huỷ</button>' : '') + '<button class="btn pri sm" type="button" data-act="pe-save"' + (dirty ? '' : ' disabled') + '>Lưu giá vào Sheet</button></div></div>' +
+    '<p class="sub" style="margin:0 0 10px">Lưu xong web tự đổi giá sau vài phút. Đơn cũ giữ giá lúc bán. Cột lãi gộp tính theo giá vốn hiện tại (Mix lấy vị có chi phí cao nhất).</p>' +
+    '<div class="toolbar" style="justify-content:flex-start;gap:10px"><label class="sub" for="pe-mix">Phụ thu vị Mix</label><input class="inp num" id="pe-mix" type="number" min="0" step="1000" data-pe="mix" value="' + PE.mix + '"> <span class="sub">đ/hũ</span></div>' +
+    '<div class="tbl-wrap"><table><thead><tr><th>Cốt</th><th class="c">Size</th><th class="r">Giá Original</th><th class="r">Giá Mix</th><th class="r">Lãi Original</th><th class="r">Lãi Mix</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<h3 style="margin-top:16px">Combo</h3><div class="tbl-wrap"><table><thead><tr><th>Combo</th><th class="r">Giá thanh trùng</th><th class="r">Giá A2</th><th class="r">Giảm</th><th class="c">Freeship</th><th class="c">Đang bán</th></tr></thead><tbody>' + cbs + '</tbody></table></div>' +
+    '<h3 style="margin-top:16px">Vị đang bán</h3><div class="chips">' + vis + '</div><p class="note">Bỏ tích để tạm ẩn vị trên web (ví dụ hết nguyên liệu).</p></div>';
+}
+function savePrices() {
+  if (!peDirty()) return;
+  var b = $('[data-act="pe-save"]'); if (b) { b.disabled = true; b.textContent = 'Đang lưu…'; }
+  var body = { gia: PE.gia, mix: PE.mix, combos: PE.combos.map(function (x) { return { ten: x.ten, giaTT: x.giaTT, giaA2: x.giaA2, giam: x.giam, freeship: x.freeship, ban: x.ban }; }), vi: PE.vi.map(function (x) { return { ten: x.ten, ban: x.ban }; }) };
+  sync('priceSave', body).then(function () {
+    COT.forEach(function (c) { SIZES.forEach(function (s) { c.gia[s] = PE.gia[c.ten][s]; }); }); MIX = PE.mix;
+    PE.combos.forEach(function (x, i) { Object.assign(COMBOS[i], x); }); PE.vi.forEach(function (x, i) { VI[i].ban = x.ban; });
+    PE = null; render(); toast('Đã lưu giá bán vào Sheet. Web tự cập nhật sau vài phút.');
+  }).catch(function () {});
+}
 function vCost() {
   var rows = '';
   VI.forEach(function (v) { COT.forEach(function (c) { SIZES.forEach(function (s) {
@@ -769,7 +823,7 @@ function vCost() {
     '<span>Giá vốn cốt</span><b>' + money(baseKg(c.id)) + ' / kg · ' + money(baseKg(c.id) / 10) + ' / 100g</b></div></div>'; }).join('');
   var viHtml = '<div class="tbl-wrap"><table><thead><tr><th>Vị</th><th class="r">Chi phí tạo vị cho 1 kg thành phẩm</th><th class="r">Hũ 100g</th><th class="r">Hũ 250g</th><th class="r">Hũ 450g</th></tr></thead><tbody>' +
     VI.map(function (v, i) { return '<tr><td>' + v.ten + '</td><td class="r"><input class="inp num" style="width:110px" type="number" step="500" min="0" data-vi="' + i + '" data-k="cpv" value="' + v.cpv + '" aria-label="Chi phí vị mỗi kg"> đ</td>' + SIZES.map(function (z) { return '<td class="r">' + money(v.cpv * z / 1000) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>';
-  return head('Công thức & giá vốn', 'Sửa giá mua hoặc định mức ở đây, giá vốn từng hũ tính lại ngay. Đơn cũ giữ giá vốn lúc bán.') +
+  return head('Giá bán, công thức & giá vốn', 'Sửa giá bán, giá mua hoặc định mức ở đây. Giá vốn và lãi gộp tính lại ngay. Đơn cũ giữ giá lúc bán.') + vPrice() +
     '<div class="card"><div class="toolbar"><h2>Giá đầu vào</h2><span class="sub">Đơn giá = giá mua ÷ số lượng trong lần mua</span></div><div class="tbl-wrap"><table><thead><tr><th>Nguyên liệu</th><th>Quy cách mua</th><th class="r">Giá mua</th><th class="r">Số lượng</th><th class="r">Đơn giá</th></tr></thead><tbody>' + input + '</tbody></table></div>' +
     '<div class="toolbar" style="justify-content:flex-start"><label for="khac" class="sub">Chi phí khác mỗi hũ (túi, thìa…)</label><input class="inp num" id="khac" type="number" min="0" step="100" data-khac="1" value="' + (CFG.khac || 0) + '"> <span class="sub">đ/hũ</span></div></div>' +
     '<div class="grid g2">' + cotHtml + '</div>' +
@@ -1047,6 +1101,10 @@ document.addEventListener('click', function (e) {
   if (a === 'new-order') { NEWO = null; newOrderDrawer(); return; }
   if (a === 'nline') { NEWO.lines.push({ vi: VI[0].id, cot: COT[0].id, size: 100, sl: 1 }); newOrderDrawer(); return; }
   if (a === 'dline') { NEWO.lines.splice(+t.dataset.i, 1); newOrderDrawer(); return; }
+  if (a === 'ncombo') { NEWO.combos = NEWO.combos || []; NEWO.combos.push({ combo: (COMBOS.find(function (x) { return x.ban !== false; }) || COMBOS[0]).ten, cot: COT[0].id, set: 0, h250: { vi: 'dau-say', cot: COT[0].id }, h450: { vi: 'it-duong', cot: COT[0].id } }); if (NEWO.lines.length === 1 && !NEWO.touched) NEWO.lines = []; newOrderDrawer(); return; }
+  if (a === 'dcombo') { NEWO.combos.splice(+t.dataset.i, 1); if (!NEWO.combos.length && !NEWO.lines.length) NEWO.lines.push({ vi: VI[0].id, cot: COT[0].id, size: 100, sl: 1 }); newOrderDrawer(); return; }
+  if (a === 'pe-save') { savePrices(); return; }
+  if (a === 'pe-reset') { PE = null; render(); return; }
   if (a === 'create') { createOrder(); return; }
   if (a === 'sug' && NEWO) { var sg = SUGS[+t.dataset.i], bx = $('#n-sug'); if (!sg) return; bx.innerHTML = '<div class="note" style="padding:10px 12px">Đang tính đường đi…</div>'; MMMMaps.pick(sg).then(function (g) { NEWO.diachi = g.addr; NEWO.phuong = g.ward; NEWO.km = String(g.km).replace('.', ','); NEWO.geo = g; newOrderDrawer(); }).catch(function () { bx.hidden = true; toast('Không lấy được vị trí, sếp nhập km tay nhé'); }); return; }
   if (a === 'paid' && o) { o.thu = o.tong; o.pay = 'Đã thanh toán'; o.thuLuc = stamp(); if (o.xl === 'Mới') o.xl = 'Đang làm'; sync('orderPay', { ma: o.ma }); o.log.push({ t: stamp(), v: 'Sếp xác nhận đã nhận ' + money(o.tong) + ', chuyển Đang làm' }); save(); render(); orderDrawer(o.ma, 'msg:nhan_tien'); toast('Đã xác nhận thanh toán ' + o.ma); return; }
@@ -1069,7 +1127,8 @@ document.addEventListener('input', function (e) {
   if (t.id === 'q') { UI.q = t.value; var pos = t.selectionStart; render(); var q = $('#q'); q.focus(); q.setSelectionRange(pos, pos); return; }
   if (t.id === 'n-dc' && NEWO) { NEWO.diachi = t.value; NEWO.geo = null; NEWO.phuong = ''; sugLater(t.value); return; }
   if (t.dataset.n && NEWO) { NEWO[t.dataset.n] = t.value; if (t.tagName === 'SELECT') newOrderDrawer(); return; }
-  if (t.dataset.l !== undefined && NEWO) { var l = NEWO.lines[+t.dataset.l]; l[t.dataset.f] = t.dataset.f === 'size' || t.dataset.f === 'sl' ? Math.max(1, +t.value || 1) : t.value; if (t.tagName === 'SELECT') newOrderDrawer(); return; }
+  if (t.dataset.c !== undefined && NEWO) { var cc = NEWO.combos[+t.dataset.c], f = t.dataset.cf.split('.'); if (f.length > 1) cc[f[0]][f[1]] = t.value; else cc[f[0]] = f[0] === 'set' ? +t.value : t.value; newOrderDrawer(); return; }
+  if (t.dataset.l !== undefined && NEWO) { NEWO.touched = 1; var l = NEWO.lines[+t.dataset.l]; l[t.dataset.f] = t.dataset.f === 'size' || t.dataset.f === 'sl' ? Math.max(1, +t.value || 1) : t.value; if (t.tagName === 'SELECT') newOrderDrawer(); return; }
   if (t.id === 'shiptt') return;
   if (t.id === 'gcs') { var o = S.orders.find(function (x) { return x.ma === t.dataset.ma; }); o.ghichuShop = t.value; save(); syncLater('n' + o.ma, 'orderNote', { ma: o.ma, text: t.value }); return; }
   if (t.id === 'cnote') { S.notes[t.dataset.sdt] = t.value; save(); syncLater('c' + t.dataset.sdt, 'custNote', { sdt: t.dataset.sdt, text: t.value }); return; }
@@ -1080,6 +1139,9 @@ document.addEventListener('change', function (e) {
   if (t.dataset.l !== undefined && NEWO && t.tagName === 'INPUT') { newOrderDrawer(); return; }
   if (t.dataset.mua) { var x = nl(t.dataset.mua); if (t.dataset.k === 'qc') x.mua.qc = t.value; else { var n = parseFloat(t.value); if (n > 0) x.mua[t.dataset.k] = n; } x.gia = x.mua.gia / x.mua.sl; save(); sync('nlBuy', { id: x.id, qc: x.mua.qc, gia: x.mua.gia, sl: x.mua.sl }); render(); return; }
   if (t.id === 'shiptt') { var os = S.orders.find(function (x) { return x.ma === t.dataset.ma; }), sv = Math.max(0, Math.round(+t.value || 0)); if (!os) return; os.shipTra = sv; os.shipThat = true; os.log.push({ t: stamp(), v: 'Nhập ship thực tế · ' + money(sv) }); save(); sync('orderShip', { ma: os.ma, tien: sv }); render(); orderDrawer(os.ma); toast(os.ma + ': ship thực tế ' + money(sv)); return; }
+  if (t.dataset.pe) { peInit(); var q = t.dataset.pe.split('|'), val = Math.max(0, Math.round(+t.value || 0));
+    if (q[0] === 'g') PE.gia[q[1]][q[2]] = val; else if (q[0] === 'mix') PE.mix = val; else if (q[0] === 'cb') PE.combos[+q[1]][q[2]] = val; else if (q[0] === 'cbf') PE.combos[+q[1]].freeship = t.checked; else if (q[0] === 'cbb') PE.combos[+q[1]].ban = t.checked; else if (q[0] === 'vib') PE.vi[+q[1]].ban = t.checked;
+    render(); return; }
   if (t.dataset.khac) { CFG.khac = Math.max(0, parseFloat(t.value) || 0); save(); sync('recipe', { khac: CFG.khac }); render(); return; }
   if (t.dataset.cot !== undefined) { var v = parseFloat(t.value); if (v >= 0) COT[+t.dataset.cot][t.dataset.k] = v; save(); var cc = COT[+t.dataset.cot]; sync('recipe', { cot: [{ ten: cc.ten, litKg: cc.litKg, menL: cc.menL }] }); render(); return; }
   if (t.dataset.vi !== undefined) { var w = parseFloat(t.value); if (w >= 0) VI[+t.dataset.vi][t.dataset.k] = w; save(); var vv = VI[+t.dataset.vi]; sync('recipe', { vi: [{ ten: vv.ten, cpv: vv.cpv }] }); render(); return; }
@@ -1088,10 +1150,11 @@ function createOrder() {
   var n = NEWO, ph = (n.sdt || '').replace(/\D/g, '');
   if (n.ten.trim().length < 2 || !/^0\d{9}$/.test(ph)) { n.err = 'Cần tên khách và SĐT 10 số (VD 0912345678).'; newOrderDrawer(); return; }
   if (n.nhan === 'Giao' && !n.diachi.trim()) { n.err = 'Cần địa chỉ giao hàng.'; newOrderDrawer(); return; }
+  if (!n.lines.length && !(n.combos || []).length) { n.err = 'Đơn chưa có hũ nào.'; newOrderDrawer(); return; }
   var max = S.orders.reduce(function (m, o) { return Math.max(m, +o.ma.slice(3)); }, 1000);
   var o = { ma: 'MMM' + (max + 1), tao: iso(new Date()) + 'T' + String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0'), kenh: n.kenh, nguon: n.kenh.toLowerCase(), ten: n.ten.trim(), sdt: ph,
     nhan: n.nhan, diachi: n.nhan === 'Giao' ? n.diachi.trim() : 'Lấy tại 12 Nguyên Hồng', phuong: n.nhan === 'Giao' ? (n.phuong || '') : '', km: n.nhan === 'Giao' ? (parseFloat(String(n.km).replace(',', '.')) || 0) : 0, ngay: n.ngay, slot: n.slot,
-    items: n.lines.map(function (l) { return mkLine(l.vi, l.cot, +l.size, +l.sl); }), giam: 0, pttt: 'Chuyển khoản', ghichu: '', ghichuShop: '', pay: 'Chưa thanh toán', xl: 'Mới', thu: 0, log: [{ t: stamp(), v: 'Sếp tạo đơn (' + n.kenh + ')' }] };
+    items: n.lines.map(function (l) { return mkLine(l.vi, l.cot, +l.size, +l.sl); }).concat([].concat.apply([], (n.combos || []).map(function (c) { return comboLines(c).items; }))), giam: (n.combos || []).reduce(function (s, c) { return s + comboLines(c).giam; }, 0), pttt: 'Chuyển khoản', ghichu: '', ghichuShop: '', pay: 'Chưa thanh toán', xl: 'Mới', thu: 0, log: [{ t: stamp(), v: 'Sếp tạo đơn (' + n.kenh + ')' }] };
   orderTotals(o);
   if (LIVE) { var btn = $('[data-act="create"]'); if (btn) { btn.disabled = true; btn.textContent = 'Đang lưu vào Sheet…'; }
     sync('orderCreate', { order: { kenh: o.kenh, nguon: o.nguon, ten: o.ten, sdt: o.sdt, nhan: o.nhan, diachi: o.diachi, phuong: o.phuong, km: o.km, ngay: o.ngay, slot: o.slot, tienHang: o.hang + o.giam, giam: o.giam, ship: o.ship, tong: o.tong, shipTra: o.shipTra, ghichu: '', items: o.items.map(function (x) { return { vi: viOf(x.vi).ten, cot: cotOf(x.cot).ten, size: x.size, sl: x.sl, gia: x.gia, von: x.von, combo: x.combo, note: x.note }; }) } })
@@ -1220,7 +1283,8 @@ function ingest(d) {
   var cpv = {}; d.recipe.vi.forEach(function (v) { cpv[v.ten] = v.cpv; });
   var vis = d.menu.vi.length ? d.menu.vi : d.recipe.vi.map(function (v) { return { ten: v.ten, nhom: /original/i.test(v.ten) ? 'Original' : 'Mix' }; });
   var known = {}; VI.forEach(function (v) { known[v.ten] = v.id; });
-  VI.length = 0; vis.forEach(function (v) { VI.push({ id: known[v.ten] || slug(v.ten), ten: v.ten, nhom: v.nhom || 'Mix', cpv: cpv[v.ten] || 0 }); });
+  VI.length = 0; vis.forEach(function (v) { VI.push({ id: known[v.ten] || slug(v.ten), ten: v.ten, nhom: v.nhom || 'Mix', cpv: cpv[v.ten] || 0, ban: !/^(không|hết|tắt)/i.test(v.dangBan || 'Có') }); });
+  if (d.menu.combos && d.menu.combos.length) { COMBOS.length = 0; d.menu.combos.forEach(function (c) { var n = function (v) { var x = Number(String(v == null ? '' : v).replace(/[^\d]/g, '')); return x > 0 && typeof v !== 'string' || /^\d/.test(String(v)) ? x : 0; }; COMBOS.push({ ten: c.ten, giaTT: n(c.giaTT), giaA2: n(c.giaA2), giam: Number(c.giam) || 0, freeship: /^có/i.test(c.freeship || ''), ban: !/^(không|hết|tắt)/i.test(c.dangBan || 'Có') }); }); }
   MIX = d.menu.mix || 10000;
   d.recipe.baobi.forEach(function (b) { BAOBI[b.size] = b.hu; BAOTEM[b.size] = b.tem || 'tem'; CFG.khac = b.khac || 0; });
   var c = d.cfg || {}, n = function (k, def) { var v = Number(String(c[k] == null ? '' : c[k]).replace(/[^\d.]/g, '')); return v > 0 ? v : def; };
