@@ -366,4 +366,27 @@ details.fq p{margin:12px 0 0;color:var(--muted)}
   .kv2>div{grid-template-columns:90px 1fr auto}.kv2 b{font-size:16px}
   .toast{bottom:110px}
 }
-@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+/* sticker cô bé Mướt */
+.stk{display:block;height:auto;filter:drop-shadow(0 6px 10px rgba(74,31,43,.12));pointer-events:none;user-select:none}
+.stk.pop{animation:stkpop .6s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes stkpop{0%{transform:scale(.55) translateY(12px);opacity:0}100%{transform:none;opacity:1}}
+.stk.tiny{width:56px;flex:none}
+.stk.side{width:140px;flex:none}.stk.side.sm{width:110px}
+.stk.faqs{width:150px;margin-top:22px}
+.stk.ctas{width:150px}
+.cbx{position:relative}.stk.deco{position:absolute;top:-34px;right:-10px;width:118px}
+.empty .stk{width:170px}
+.ok-h .stk{width:120px;flex:none}
+.help{display:flex;gap:10px;align-items:center}
+.fsbox .fsstk{float:right;margin:-6px -4px 0 8px}
+.toast{display:flex;align-items:center;gap:8px;border-radius:999px}.toast .stk{width:40px;height:40px;object-fit:contain;margin:-8px 0 -8px -8px;animation:stkpop .5s cubic-bezier(.2,1.5,.4,1) both}
+.cta{grid-template-columns:auto 1fr auto}
+[data-o="sleep"]{margin-bottom:14px}
+.toast:has(.stk){animation:none}
+@media (max-width:900px){
+  .stk.side{width:92px}.stk.side.sm{width:84px}.stk.faqs{width:110px;margin-top:14px}
+  .stk.deco{width:76px;top:-26px;right:-4px}.cbx.wide h3{padding-right:64px}
+  .cta{grid-template-columns:1fr;justify-items:start}.stk.ctas{width:110px;margin:-56px 0 -8px auto}
+  .empty .stk{width:140px}.ok-h .stk{width:84px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important;animation:none!important}}

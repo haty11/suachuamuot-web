@@ -1273,7 +1273,10 @@ async function refresh(fresh) {
 function logout() { try { google.accounts.id.disableAutoSelect(); } catch (e) {} [TKEY, DKEY, PKEY].forEach(function (k) { ls(k, null); }); try { sessionStorage.removeItem(TKEY); } catch (e) {} token = ''; ME = null; showLogin(); }
 
 /* Chuyển dữ liệu Sheet sang dạng trang dùng */
+/* Làm sạch chữ từ Sheet trước khi hiện (phòng ai đó ghi mã HTML vào ô) */
+function clean(o) { if (typeof o === 'string') return o.replace(/[<>]/g, ''); if (Array.isArray(o)) return o.map(clean); if (o && typeof o === 'object') { var r = {}; Object.keys(o).forEach(function (k) { r[k] = clean(o[k]); }); return r; } return o; }
 function ingest(d) {
+  d.orders = clean(d.orders); d.notes = clean(d.notes || {}); d.lots = clean(d.lots || []); d.cp = clean(d.cp || []);
   var cot = d.recipe.cot.map(function (c) { var g = d.menu.gia[c.ten] || {}; return { id: cotId(c.ten), ten: c.ten, sua: c.sua, litKg: c.litKg || 2.5, menL: c.menL || 1.5, gia: { 100: g[100] || 0, 250: g[250] || 0, 450: g[450] || 0 } }; });
   COT.length = 0; cot.forEach(function (c) { COT.push(c); });
   var cpv = {}; d.recipe.vi.forEach(function (v) { cpv[v.ten] = v.cpv; });
