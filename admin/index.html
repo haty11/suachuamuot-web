@@ -398,6 +398,7 @@ function pnl(from, to) {
   S.orders.forEach(function (o) {
     if (!live(o) || o.pay === 'Chưa thanh toán' || o.ngay < from || o.ngay > to) return;
     r.don++; r.hang += o.hang + o.giam; r.giam += o.giam; r.ship += o.ship; r.von += o.von; r.shipTra += o.shipTra; r.hu += hu(o);
+    if (o.shipTra && !o.shipThat) r.uoc = (r.uoc || 0) + 1;
   });
   CP_NHOM.forEach(function (n) { r.cp[n] = 0; });
   S.cp.forEach(function (c) { if (c.ngay >= from && c.ngay <= to) r.cp[c.nhom] = (r.cp[c.nhom] || 0) + c.tien; });
@@ -480,8 +481,10 @@ function head(t, p, right) { return '<div class="head"><div><h1>' + t + '</h1>' 
 function vHome() {
   var td = iso(TODAY), tm = iso(addD(TODAY, 1));
   var today = S.orders.filter(function (o) { return live(o) && o.ngay === td; });
-  var dtToday = today.reduce(function (s, o) { return s + o.hang; }, 0), vonToday = today.reduce(function (s, o) { return s + o.von; }, 0);
-  var thuToday = today.reduce(function (s, o) { return s + (o.thu || 0); }, 0);
+  var todayPaid = today.filter(paidOk);
+  var dtToday = todayPaid.reduce(function (s, o) { return s + o.hang; }, 0), vonToday = todayPaid.reduce(function (s, o) { return s + o.von; }, 0);
+  var inToday = S.orders.filter(function (o) { return live(o) && o.pay !== 'Chưa thanh toán' && (o.thuLuc || '').slice(0, 10) === td; });
+  var inAmt = inToday.reduce(function (s, o) { return s + (o.thu || o.tong); }, 0);
   var newO = S.orders.filter(function (o) { return live(o) && o.xl === 'Mới'; });
   var unpaid = S.orders.filter(function (o) { return live(o) && (o.pay === 'Chưa thanh toán' || o.pay === 'Thiếu'); });
   var unpaidAmt = unpaid.reduce(function (s, o) { return s + o.tong - (o.thu || 0); }, 0);
@@ -497,14 +500,16 @@ function vHome() {
   todo.push(['info', 'Cần làm ' + cnt(pT) + ' hũ cho hôm nay, ' + cnt(pM) + ' hũ cho ngày mai', 'Mở phiếu sản xuất', '#san-xuat', '']);
   if (short.length) todo.push(['bad', 'Thiếu nguyên liệu cho ngày mai: ' + short.map(function (id) { return nl(id).ten; }).join(', '), 'So với số cần trong phiếu sản xuất', '#san-xuat', '']);
   if (low.length) todo.push(['warn', low.length + ' nguyên liệu sắp hết', low.map(function (x) { return x.ten; }).join(', '), '#kho', '']);
+  var noShip = S.orders.filter(function (o) { return live(o) && o.nhan === 'Giao' && !o.shipNote && !o.shipThat && (o.xl === 'Đang giao' || o.xl === 'Hoàn tất') && o.ngay >= iso(addD(TODAY, -7)); });
+  if (noShip.length) todo.push(['info', noShip.length + ' đơn đã giao chưa nhập tiền ship thực tế', noShip.map(function (o) { return o.ma; }).slice(0, 4).join(', ') + (noShip.length > 4 ? '…' : '') + ' · mở đơn để nhập', '#don-hang', '']);
   if (exp.length) todo.push(['warn', exp.reduce(function (s, x) { return s + x.sl; }, 0) + ' hũ dư sắp hết hạn', 'Ưu tiên bán hoặc tặng trước', '#kho', 'du']);
   var bySlot = SLOTS.map(function (s) { return [s, today.filter(function (o) { return o.slot === s; })]; });
   return head('Chào sếp', THU[TODAY.getDay()] === 'CN' ? 'Chủ nhật ' + dm(TODAY) : 'Thứ ' + ['', 'Hai', 'Ba', 'Tư', 'Năm', 'Sáu', 'Bảy'][TODAY.getDay()] + ', ' + dm(TODAY) + '/' + TODAY.getFullYear(),
     '<div class="chips">' + (LIVE ? '' : '<span class="sample">Dữ liệu mẫu</span>') + '<button class="btn pri" type="button" data-act="new-order">+ Tạo đơn</button></div>') +
   '<div class="grid g4">' +
-    '<div class="card kpi"><span class="l">Doanh thu hôm nay</span><span class="v">' + money(dtToday) + '</span><span class="s">' + today.length + ' đơn nhận hôm nay · đã thu ' + money(thuToday) + '</span></div>' +
+    '<div class="card kpi"><span class="l">Tiền vào hôm nay</span><span class="v pos">' + money(inAmt) + '</span><span class="s">' + inToday.length + ' đơn xác nhận nhận tiền hôm nay</span></div>' +
+    '<div class="card kpi"><span class="l">Doanh thu hôm nay</span><span class="v">' + money(dtToday) + '</span><span class="s">' + todayPaid.length + '/' + today.length + ' đơn nhận hôm nay đã thu tiền</span></div>' +
     '<div class="card kpi"><span class="l">Lãi gộp tạm tính hôm nay</span><span class="v pos">' + money(dtToday - vonToday) + '</span><span class="s">Biên ' + (dtToday ? Math.round((dtToday - vonToday) / dtToday * 100) : 0) + '% · giá vốn ' + money(vonToday) + '</span></div>' +
-    '<div class="card kpi' + (newO.length ? ' hot' : '') + '"><span class="l">Đơn mới cần xử lý</span><span class="v">' + newO.length + '</span><span class="s">' + S.orders.filter(needWork).length + ' đơn đang chờ việc</span></div>' +
     '<div class="card kpi"><span class="l">Chờ xác nhận tiền</span><span class="v">' + money(unpaidAmt) + '</span><span class="s">' + unpaid.length + ' đơn chưa thu đủ</span></div>' +
   '</div>' +
   '<div class="grid g21">' +
@@ -528,10 +533,11 @@ function vHome() {
     }).join('') + '</div>' +
   '</div>';
 }
+function paidOk(o) { return live(o) && o.pay !== 'Chưa thanh toán'; }
 function chart14() {
   var days = [], W = 640, H = 220, pl = 44, pb = 26, pt = 10;
   for (var i = -13; i <= 0; i++) {
-    var d = iso(addD(TODAY, i)), os = S.orders.filter(function (o) { return live(o) && o.ngay === d; });
+    var d = iso(addD(TODAY, i)), os = S.orders.filter(function (o) { return paidOk(o) && o.ngay === d; });
     days.push({ d: d, dt: os.reduce(function (s, o) { return s + o.hang; }, 0), gop: os.reduce(function (s, o) { return s + o.hang - o.von; }, 0) });
   }
   var max = Math.max.apply(null, days.map(function (x) { return x.dt; })) || 1, step = Math.ceil(max / 4 / 100000) * 100000 || 100000, top = step * 4;
@@ -595,7 +601,7 @@ function orderDrawer(ma, extra) {
     '<div class="ind"><span>Phí ship thu của khách</span><span>' + (o.shipNote || money(o.ship)) + '</span></div>' +
     '<div class="t"><span>Tổng chuyển khoản</span><span>' + money(o.tong) + '</span></div>' +
     '<div class="ind"><span>Lãi gộp (tiền hàng − giá vốn)</span><span class="pos">' + money(o.hang - o.von) + '</span></div>' +
-    (o.shipTra ? '<div class="ind"><span>Shop trả shipper (ước tính)</span><span>−' + money(o.shipTra) + '</span></div>' : '') + '</div>' +
+    (o.nhan === 'Giao' && !o.shipNote ? '<div class="ind"><span>Shop trả shipper' + (o.shipThat ? '' : ' (ước tính)') + '</span><span>−' + money(o.shipTra) + '</span></div><div class="ind"><span>Chênh lệch ship (thu khách − trả shipper)</span><span class="' + (o.ship - o.shipTra >= 0 ? 'pos' : 'neg') + '">' + (o.ship - o.shipTra >= 0 ? '+' : '−') + money(Math.abs(o.ship - o.shipTra)) + '</span></div>' : '') + '</div>' +
     '<div class="note">Giá vốn được chốt lúc đặt đơn. Đổi giá nguyên liệu sau này không làm thay đổi lãi của đơn này.</div></div>';
   var act = '';
   if (live(o)) {
@@ -606,6 +612,7 @@ function orderDrawer(ma, extra) {
   html += '<div class="card"><h3>Xử lý</h3><div class="chips">' + (act || '<span class="sub">Đơn đã đóng.</span>') + '</div>' +
     (conf ? '<div class="confirm"><b>Huỷ đơn ' + o.ma + '?</b><span class="sub">' + (o.pay === 'Đã thanh toán' || o.pay === 'Thiếu' ? 'Đơn đã thu ' + money(o.thu || 0) + ', trạng thái thanh toán sẽ chuyển thành Hoàn tiền. Nhớ chuyển trả khách.' : 'Hũ của đơn sẽ không tính vào phiếu sản xuất và doanh thu nữa.') + '</span><div class="chips"><button class="btn danger" type="button" data-act="cancel">Xác nhận huỷ</button><button class="btn ghost" type="button" data-act="reopen">Không huỷ</button></div></div>' : '') +
     (msgK ? '<div class="fld"><label>Tin nhắn Zalo (đã điền sẵn)</label><div class="msg" id="msgtxt">' + esc(fillTpl(msgK, o)) + '</div><div class="chips"><button class="btn sm" type="button" data-act="copy">Chép tin nhắn</button><a class="btn sm" href="' + zaloUrl(o.sdt) + '" target="_blank" rel="noopener">Mở Zalo ' + o.sdt + '</a></div><span class="note">Chép rồi dán vào khung chat Zalo. Web không tự gửi tin.</span></div>' : '') +
+    (o.nhan === 'Giao' && !o.shipNote && live(o) ? '<div class="fld"><label for="shiptt">Tiền ship thực tế trả shipper' + (o.shipThat ? ' <span class="sub">· đã nhập</span>' : ' <span class="sub">· đang để ước tính</span>') + '</label><input class="inp" id="shiptt" data-ma="' + o.ma + '" type="number" min="0" step="1000" inputmode="numeric" value="' + (o.shipTra || 0) + '" style="max-width:180px"><span class="note">Đặt ship xong thì sửa số này, bấm ra ngoài là lưu. Thu khách ' + money(o.ship) + '.</span></div>' : '') +
     '<div class="fld"><label for="gcs">Ghi chú của shop</label><textarea class="inp" id="gcs" data-ma="' + o.ma + '" placeholder="VD: khách quen, giao trước 10h">' + esc(o.ghichuShop) + '</textarea></div></div>';
   html += infoHtml + '<div class="card flat"><h3>Lịch sử</h3>' + o.log.slice().reverse().map(function (l) { return '<div class="sub">' + esc(l.t) + ' · ' + esc(l.v) + '</div>'; }).join('') + '</div>';
   openDrawer(html);
@@ -794,7 +801,8 @@ function vReport() {
       '<div><span>Tiền hàng theo giá lẻ</span><span>' + money(r.hang) + '</span></div><div class="ind"><span>Giảm giá combo (chi phí khuyến mãi)</span><span>−' + money(r.giam) + '</span></div>' +
       '<div><span><b>Doanh thu bán hàng</b></span><b>' + money(r.dt) + '</b></div><div class="ind"><span>Giá vốn hàng bán (chốt lúc bán)</span><span>−' + money(r.von) + '</span></div>' +
       '<div><span><b>Lãi gộp</b></span><b>' + money(r.gop) + '</b></div>' +
-      '<div class="ind"><span>Giao hàng: trả shipper − phí ship thu khách</span><span>' + sgn(r.shipTra - r.ship) + '</span></div>' + cpRows +
+      '<div class="ind"><span>Phí ship thu của khách</span><span>+' + money(r.ship) + '</span></div>' +
+      '<div class="ind"><span>Trả shipper' + (r.uoc ? ' <span class="sub">(' + r.uoc + ' đơn còn ước tính)</span>' : '') + '</span><span>−' + money(r.shipTra) + '</span></div>' + cpRows +
       (r.huy ? '<div class="ind"><span>Hao huỷ hũ quá hạn</span><span>−' + money(r.huy) + '</span></div>' : '') +
       '<div class="t"><span>Lãi ròng</span><span class="' + (r.rong >= 0 ? 'pos' : 'neg') + '">' + money(r.rong) + '</span></div></div></div>' +
     '<div class="card"><h2>Vị bán chạy (hũ)</h2>' + bars(byVi, function (k) { return viOf(k).ten; }, function (v) { return v; }) + '</div></div>' +
@@ -896,7 +904,7 @@ document.addEventListener('click', function (e) {
   if (a === 'nline') { NEWO.lines.push({ vi: VI[0].id, cot: COT[0].id, size: 100, sl: 1 }); newOrderDrawer(); return; }
   if (a === 'dline') { NEWO.lines.splice(+t.dataset.i, 1); newOrderDrawer(); return; }
   if (a === 'create') { createOrder(); return; }
-  if (a === 'paid' && o) { o.thu = o.tong; o.pay = 'Đã thanh toán'; if (o.xl === 'Mới') o.xl = 'Đang làm'; sync('orderPay', { ma: o.ma }); o.log.push({ t: stamp(), v: 'Sếp xác nhận đã nhận ' + money(o.tong) + ', chuyển Đang làm' }); save(); render(); orderDrawer(o.ma, 'msg:nhan_tien'); toast('Đã xác nhận thanh toán ' + o.ma); return; }
+  if (a === 'paid' && o) { o.thu = o.tong; o.pay = 'Đã thanh toán'; o.thuLuc = stamp(); if (o.xl === 'Mới') o.xl = 'Đang làm'; sync('orderPay', { ma: o.ma }); o.log.push({ t: stamp(), v: 'Sếp xác nhận đã nhận ' + money(o.tong) + ', chuyển Đang làm' }); save(); render(); orderDrawer(o.ma, 'msg:nhan_tien'); toast('Đã xác nhận thanh toán ' + o.ma); return; }
   if (a === 'next' && o) { var nx = nextXl(o); o.xl = nx; sync('orderStatus', { ma: o.ma, xl: nx }); o.log.push({ t: stamp(), v: 'Chuyển sang ' + nx }); save(); render(); orderDrawer(o.ma, nx === 'Đang giao' ? 'msg:dang_giao' : nx === 'Chờ lấy' ? 'msg:cho_lay' : null); toast(o.ma + ': ' + nx); return; }
   if (a === 'msg' && o) { orderDrawer(o.ma, 'msg:' + t.dataset.k); return; }
   if (a === 'ask-cancel' && o) { orderDrawer(o.ma, 'confirm-cancel'); return; }
@@ -916,6 +924,7 @@ document.addEventListener('input', function (e) {
   if (t.id === 'q') { UI.q = t.value; var pos = t.selectionStart; render(); var q = $('#q'); q.focus(); q.setSelectionRange(pos, pos); return; }
   if (t.dataset.n && NEWO) { NEWO[t.dataset.n] = t.value; if (t.tagName === 'SELECT') newOrderDrawer(); return; }
   if (t.dataset.l !== undefined && NEWO) { var l = NEWO.lines[+t.dataset.l]; l[t.dataset.f] = t.dataset.f === 'size' || t.dataset.f === 'sl' ? Math.max(1, +t.value || 1) : t.value; if (t.tagName === 'SELECT') newOrderDrawer(); return; }
+  if (t.id === 'shiptt') return;
   if (t.id === 'gcs') { var o = S.orders.find(function (x) { return x.ma === t.dataset.ma; }); o.ghichuShop = t.value; save(); syncLater('n' + o.ma, 'orderNote', { ma: o.ma, text: t.value }); return; }
   if (t.id === 'cnote') { S.notes[t.dataset.sdt] = t.value; save(); syncLater('c' + t.dataset.sdt, 'custNote', { sdt: t.dataset.sdt, text: t.value }); return; }
   if (t.dataset.tpl) { S.tpl[t.dataset.tpl] = t.value; save(); syncLater('t' + t.dataset.tpl, 'tpl', { key: TPLKEY[t.dataset.tpl], text: t.value }); return; }
@@ -924,6 +933,7 @@ document.addEventListener('change', function (e) {
   var t = e.target;
   if (t.dataset.l !== undefined && NEWO && t.tagName === 'INPUT') { newOrderDrawer(); return; }
   if (t.dataset.mua) { var x = nl(t.dataset.mua); if (t.dataset.k === 'qc') x.mua.qc = t.value; else { var n = parseFloat(t.value); if (n > 0) x.mua[t.dataset.k] = n; } x.gia = x.mua.gia / x.mua.sl; save(); sync('nlBuy', { id: x.id, qc: x.mua.qc, gia: x.mua.gia, sl: x.mua.sl }); render(); return; }
+  if (t.id === 'shiptt') { var os = S.orders.find(function (x) { return x.ma === t.dataset.ma; }), sv = Math.max(0, Math.round(+t.value || 0)); if (!os) return; os.shipTra = sv; os.shipThat = true; os.log.push({ t: stamp(), v: 'Nhập ship thực tế · ' + money(sv) }); save(); sync('orderShip', { ma: os.ma, tien: sv }); render(); orderDrawer(os.ma); toast(os.ma + ': ship thực tế ' + money(sv)); return; }
   if (t.dataset.khac) { CFG.khac = Math.max(0, parseFloat(t.value) || 0); save(); sync('recipe', { khac: CFG.khac }); render(); return; }
   if (t.dataset.cot !== undefined) { var v = parseFloat(t.value); if (v >= 0) COT[+t.dataset.cot][t.dataset.k] = v; save(); var cc = COT[+t.dataset.cot]; sync('recipe', { cot: [{ ten: cc.ten, litKg: cc.litKg, menL: cc.menL }] }); render(); return; }
   if (t.dataset.vi !== undefined) { var w = parseFloat(t.value); if (w >= 0) VI[+t.dataset.vi][t.dataset.k] = w; save(); var vv = VI[+t.dataset.vi]; sync('recipe', { vi: [{ ten: vv.ten, cpv: vv.cpv }] }); render(); return; }
@@ -1050,6 +1060,9 @@ function ingest(d) {
     if (!o.tong) o.tong = o.hang + (o.ship || 0);
     if (o.nhan === 'Giao' && o.km > CFG.banKinh && !o.ship) o.shipNote = 'Khách trả shipper';
     if (!o.tao) o.tao = o.ngay + 'T00:00';
+    var lg = (o.log || []).filter(function (l) { return /nhận tiền|đã nhận/i.test(l.v); });
+    o.thuLuc = o.pay === 'Chưa thanh toán' ? '' : lg.length ? lg[lg.length - 1].t : '';
+    o.shipThat = (o.log || []).some(function (l) { return /ship thực tế/i.test(l.v); });
     return o;
   });
   var tpl = {}; Object.keys(TPLKEY).forEach(function (k) { tpl[k] = c[TPLKEY[k]] || (S && S.tpl && S.tpl[k]) || ''; });
