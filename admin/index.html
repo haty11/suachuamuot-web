@@ -153,7 +153,31 @@ textarea.inp{padding:8px 12px;min-height:72px;width:100%;resize:vertical}
   .mcards{display:flex;flex-direction:column;gap:8px}
   .dtable{display:none}
   h1{font-size:22px}
+  /* menu điện thoại: nền mờ chạm để đóng + nút × */
+  #scrim{position:fixed;inset:0;z-index:44;background:rgba(20,8,12,.45)}
+  #sideX{position:absolute;top:max(12px,env(safe-area-inset-top,0px));right:10px;width:40px;height:40px;border:0;border-radius:10px;background:var(--side-hi);color:var(--side-ink);font-size:24px;line-height:1;cursor:pointer}
+  body.menu-on{overflow:hidden}
+  /* bảng dạng thẻ: mỗi dòng thành 1 khối, không phải vuốt ngang */
+  .tbl-wrap:has(table.stack){overflow:visible;margin:0;padding:0}
+  table.stack thead{display:none}
+  table.stack,table.stack tbody{display:block}
+  table.stack tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  table.stack td{display:flex;flex-direction:column;gap:3px;padding:0;border:0;background:none;text-align:left!important;min-width:0}
+  table.stack td::before{content:attr(data-l);font-size:11px;font-weight:600;color:var(--muted)}
+  table.stack td.h,table.stack td.full-m{grid-column:1/-1}
+  table.stack td.h{font-weight:700;font-size:15px;display:block}
+  table.stack td.h::before,table.stack td:not([data-l])::before{display:none}
+  table.stack td .inp{width:100%!important;max-width:none}
+  table.stack td{align-items:flex-start}
+  table.stack td.hide-m{display:none}
+  table.stack td .inp{align-self:stretch}
+  table.stack .d-only{display:none}
+  .gvsec:not(.on){display:none}
+  .gvt .gvr:not(.on){display:none}
+  .gvtabs{position:sticky;top:calc(56px + env(safe-area-inset-top,0px));z-index:20;background:var(--bg);padding:8px 0;margin:0 0 4px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .gvtabs .chip{flex:none;min-height:36px}
 }
+@media (min-width:821px){.m-only{display:none!important}#sideX,#scrim{display:none!important}}
 @media (max-width:420px){.g4{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.kpi .v{font-size:21px}}
 #gate{position:fixed;inset:0;z-index:70;background:var(--side);display:flex;align-items:center;justify-content:center;padding:24px max(16px,env(safe-area-inset-left,0px))}
 .gbox{background:var(--surface);color:var(--ink);border-radius:20px;padding:28px;max-width:440px;width:100%;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow)}
@@ -474,7 +498,7 @@ var PAGES = [
   ['kho', 'Kho', 'box'], ['gia-von', 'Giá bán & giá vốn', 'recipe'], ['khach-hang', 'Khách hàng', 'user'],
   ['chi-phi', 'Chi phí', 'cash'], ['bao-cao', 'Báo cáo lãi lỗ', 'chart'], ['truy-cap', 'Truy cập web', 'eye'], ['noi-dung', 'Nội dung web', 'doc'], ['cai-dat', 'Cài đặt & dữ liệu', 'gear']
 ];
-var UI = { tr: 7, of: 'can-xu-ly', q: '', pday: 0, kho: 'nl', kh: 'Tất cả', month: 0, open: null };
+var UI = { gv: 'ban', gvVi: '', tr: 7, of: 'can-xu-ly', q: '', pday: 0, kho: 'nl', kh: 'Tất cả', month: 0, open: null };
 function svg(n) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[n] + '</svg>'; }
 function $(s, r) { return (r || document).querySelector(s); }
 function toast(t) { var e = $('#toast'); e.textContent = t; e.hidden = false; clearTimeout(e._t); e._t = setTimeout(function () { e.hidden = true; }, 2200); }
@@ -497,7 +521,7 @@ function render() {
   var r = route(), m = $('#main');
   m.innerHTML = ({ 'tong-quan': vHome, 'don-hang': vOrders, 'san-xuat': vProd, 'kho': vKho, 'gia-von': vCost, 'khach-hang': vCust, 'chi-phi': vCp, 'truy-cap': vTraffic, 'noi-dung': vContent, 'bao-cao': vReport, 'cai-dat': vSet }[r])();
   if (r === 'noi-dung') ceMark();
-  $('#side').classList.remove('open');
+  menu(false);
 }
 function sgn(v) { return v >= 0 ? '−' + money(v) : '+' + money(-v); }
 function head(t, p, right) { return '<div class="head"><div><h1>' + t + '</h1>' + (p ? '<p>' + p + '</p>' : '') + '</div>' + (right || '') + '</div>'; }
@@ -825,17 +849,17 @@ function vPrice() {
   var cell = function (gb, gv) { var p = gb ? (gb - gv) / gb * 100 : 0; return '<span class="pill ' + (p < 45 ? 'p-bad' : p < 55 ? 'p-warn' : 'p-good') + '">' + Math.round(p) + '%</span>'; };
   var rows = COT.map(function (c) { return SIZES.map(function (s) {
     var g = PE.gia[c.ten][s], go = org ? Math.round(giaVon(org.id, c.id, s).tong) : 0, gm = mixHi ? Math.round(giaVon(mixHi.id, c.id, s).tong) : 0;
-    return '<tr><td>' + c.ten + '</td><td class="c">' + s + 'g</td><td class="r"><input class="inp num" type="number" min="0" step="1000" data-pe="g|' + esc(c.ten) + '|' + s + '" value="' + g + '" aria-label="Giá ' + esc(c.ten) + ' ' + s + 'g"></td><td class="r">' + money(g + PE.mix) + '</td><td class="r">' + cell(g, go) + '</td><td class="r">' + cell(g + PE.mix, gm) + '</td></tr>'; }).join(''); }).join('');
+    return '<tr><td class="h">' + c.ten + ' <span class="m-only">' + s + 'g</span></td><td class="c d-only">' + s + 'g</td><td class="r" data-l="Giá Original"><input class="inp num" type="number" min="0" step="1000" data-pe="g|' + esc(c.ten) + '|' + s + '" value="' + g + '" aria-label="Giá ' + esc(c.ten) + ' ' + s + 'g"></td><td class="r" data-l="Giá Mix">' + money(g + PE.mix) + '</td><td class="r" data-l="Lãi Original">' + cell(g, go) + '</td><td class="r" data-l="Lãi Mix">' + cell(g + PE.mix, gm) + '</td></tr>'; }).join(''); }).join('');
   var cbs = PE.combos.map(function (x, i) { var k = /khoẻ/i.test(x.ten);
-    return '<tr><td><b>' + esc(x.ten) + '</b></td>' + (k ? '<td colspan="2" class="sub">Giá lẻ 2 hũ − số giảm</td>' : '<td class="r"><input class="inp num" type="number" min="0" step="1000" data-pe="cb|' + i + '|giaTT" value="' + x.giaTT + '" aria-label="Giá ' + esc(x.ten) + ' thanh trùng"></td><td class="r"><input class="inp num" type="number" min="0" step="1000" data-pe="cb|' + i + '|giaA2" value="' + x.giaA2 + '" aria-label="Giá ' + esc(x.ten) + ' A2"></td>') +
-      '<td class="r">' + (k ? '<input class="inp num" type="number" min="0" step="1000" data-pe="cb|' + i + '|giam" value="' + x.giam + '" aria-label="Giảm ' + esc(x.ten) + '">' : (x.giam ? money(x.giam) : '—')) + '</td><td class="c"><input type="checkbox" data-pe="cbf|' + i + '"' + (x.freeship ? ' checked' : '') + ' aria-label="Freeship"></td><td class="c"><input type="checkbox" data-pe="cbb|' + i + '"' + (x.ban ? ' checked' : '') + ' aria-label="Đang bán"></td></tr>'; }).join('');
+    return '<tr><td class="h"><b>' + esc(x.ten) + '</b></td>' + (k ? '<td colspan="2" class="sub full-m">Giá lẻ 2 hũ − số giảm</td>' : '<td class="r" data-l="Giá thanh trùng"><input class="inp num" type="number" min="0" step="1000" data-pe="cb|' + i + '|giaTT" value="' + x.giaTT + '" aria-label="Giá ' + esc(x.ten) + ' thanh trùng"></td><td class="r" data-l="Giá A2"><input class="inp num" type="number" min="0" step="1000" data-pe="cb|' + i + '|giaA2" value="' + x.giaA2 + '" aria-label="Giá ' + esc(x.ten) + ' A2"></td>') +
+      '<td class="r" data-l="Giảm">' + (k ? '<input class="inp num" type="number" min="0" step="1000" data-pe="cb|' + i + '|giam" value="' + x.giam + '" aria-label="Giảm ' + esc(x.ten) + '">' : (x.giam ? money(x.giam) : '—')) + '</td><td class="c" data-l="Freeship"><input type="checkbox" data-pe="cbf|' + i + '"' + (x.freeship ? ' checked' : '') + ' aria-label="Freeship"></td><td class="c" data-l="Đang bán"><input type="checkbox" data-pe="cbb|' + i + '"' + (x.ban ? ' checked' : '') + ' aria-label="Đang bán"></td></tr>'; }).join('');
   var vis = PE.vi.map(function (x, i) { return '<label class="chip" style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" data-pe="vib|' + i + '"' + (x.ban ? ' checked' : '') + '> ' + esc(x.ten) + '</label>'; }).join(' ');
   var dirty = peDirty();
   return '<div class="card"><div class="toolbar"><h2>Giá bán</h2><div class="chips">' + (dirty ? '<span class="pill p-warn">Chưa lưu</span><button class="btn ghost sm" type="button" data-act="pe-reset">Huỷ</button>' : '') + '<button class="btn pri sm" type="button" data-act="pe-save"' + (dirty ? '' : ' disabled') + '>Lưu giá vào Sheet</button></div></div>' +
     '<p class="sub" style="margin:0 0 10px">Lưu xong web tự đổi giá sau vài phút. Đơn cũ giữ giá lúc bán. Cột lãi gộp tính theo giá vốn hiện tại (Mix lấy vị có chi phí cao nhất).</p>' +
     '<div class="toolbar" style="justify-content:flex-start;gap:10px"><label class="sub" for="pe-mix">Phụ thu vị Mix</label><input class="inp num" id="pe-mix" type="number" min="0" step="1000" data-pe="mix" value="' + PE.mix + '"> <span class="sub">đ/hũ</span></div>' +
-    '<div class="tbl-wrap"><table><thead><tr><th>Cốt</th><th class="c">Size</th><th class="r">Giá Original</th><th class="r">Giá Mix</th><th class="r">Lãi Original</th><th class="r">Lãi Mix</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    '<h3 style="margin-top:16px">Combo</h3><div class="tbl-wrap"><table><thead><tr><th>Combo</th><th class="r">Giá thanh trùng</th><th class="r">Giá A2</th><th class="r">Giảm</th><th class="c">Freeship</th><th class="c">Đang bán</th></tr></thead><tbody>' + cbs + '</tbody></table></div>' +
+    '<div class="tbl-wrap"><table class="stack"><thead><tr><th>Cốt</th><th class="c">Size</th><th class="r">Giá Original</th><th class="r">Giá Mix</th><th class="r">Lãi Original</th><th class="r">Lãi Mix</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<h3 style="margin-top:16px">Combo</h3><div class="tbl-wrap"><table class="stack"><thead><tr><th>Combo</th><th class="r">Giá thanh trùng</th><th class="r">Giá A2</th><th class="r">Giảm</th><th class="c">Freeship</th><th class="c">Đang bán</th></tr></thead><tbody>' + cbs + '</tbody></table></div>' +
     '<h3 style="margin-top:16px">Vị đang bán</h3><div class="chips">' + vis + '</div><p class="note">Bỏ tích để tạm ẩn vị trên web (ví dụ hết nguyên liệu).</p></div>';
 }
 function savePrices() {
@@ -852,27 +876,32 @@ function vCost() {
   var rows = '';
   VI.forEach(function (v) { COT.forEach(function (c) { SIZES.forEach(function (s) {
     var gv = giaVon(v.id, c.id, s), gb = giaBan(v.id, c.id, s), lai = gb - gv.tong, pct = lai / gb * 100;
-    rows += '<tr><td>' + v.ten + '</td><td>' + c.ten + '</td><td class="c">' + s + 'g</td><td class="r">' + money(gb) + '</td><td class="r hide-m">' + money(gv.sua) + '</td><td class="r hide-m">' + money(gv.vi) + '</td><td class="r hide-m">' + money(gv.baobi) + '</td><td class="r"><b>' + money(gv.tong) + '</b></td><td class="r">' + money(lai) + '</td><td class="r"><span class="pill ' + (pct < 45 ? 'p-bad' : pct < 55 ? 'p-warn' : 'p-good') + '">' + Math.round(pct) + '%</span></td></tr>';
+    rows += '<tr class="gvr' + (v.id === UI.gvVi ? ' on' : '') + '"><td class="h"><span class="d-only">' + v.ten + '</span><span class="m-only">' + v.ten + ' · ' + c.ten + ' ' + s + 'g</span></td><td class="d-only">' + c.ten + '</td><td class="c d-only">' + s + 'g</td><td class="r" data-l="Giá bán">' + money(gb) + '</td><td class="r hide-m">' + money(gv.sua) + '</td><td class="r hide-m">' + money(gv.vi) + '</td><td class="r hide-m">' + money(gv.baobi) + '</td><td class="r" data-l="Giá vốn"><b>' + money(gv.tong) + '</b></td><td class="r" data-l="Lãi gộp">' + money(lai) + '</td><td class="r" data-l="Biên"><span class="pill ' + (pct < 45 ? 'p-bad' : pct < 55 ? 'p-warn' : 'p-good') + '">' + Math.round(pct) + '%</span></td></tr>';
   }); }); });
   var input = S.nl.map(function (x) {
-    return '<tr><td><b>' + x.ten + '</b><div class="sub">' + x.nhom + '</div></td><td><input class="inp" style="width:170px" data-mua="' + x.id + '" data-k="qc" value="' + esc(x.mua.qc) + '" aria-label="Quy cách mua"></td>' +
-      '<td class="r"><input class="inp num" style="width:110px" type="number" min="0" step="any" data-mua="' + x.id + '" data-k="gia" value="' + x.mua.gia + '" aria-label="Giá mua"></td>' +
-      '<td class="r"><input class="inp num" style="width:70px" type="number" min="1" step="any" data-mua="' + x.id + '" data-k="sl" value="' + x.mua.sl + '" aria-label="Số lượng trong lần mua"> <span class="sub">' + x.dv + '</span></td>' +
-      '<td class="r"><b>' + money(x.gia) + '</b><div class="sub">/' + x.dv + '</div></td></tr>';
+    return '<tr><td class="h"><b>' + x.ten + '</b><div class="sub">' + x.nhom + '</div></td><td data-l="Quy cách mua" class="full-m"><input class="inp" style="width:170px" data-mua="' + x.id + '" data-k="qc" value="' + esc(x.mua.qc) + '" aria-label="Quy cách mua"></td>' +
+      '<td class="r" data-l="Giá mua"><input class="inp num" style="width:110px" type="number" min="0" step="any" data-mua="' + x.id + '" data-k="gia" value="' + x.mua.gia + '" aria-label="Giá mua"></td>' +
+      '<td class="r" data-l="Số lượng"><input class="inp num" style="width:70px" type="number" min="1" step="any" data-mua="' + x.id + '" data-k="sl" value="' + x.mua.sl + '" aria-label="Số lượng trong lần mua"> <span class="sub">' + x.dv + '</span></td>' +
+      '<td class="r" data-l="Đơn giá"><b>' + money(x.gia) + '</b><div class="sub">/' + x.dv + '</div></td></tr>';
   }).join('');
   var cotHtml = COT.map(function (c, i) { return '<div class="card flat"><h3>Cốt ' + c.ten + '</h3><div class="kv"><span>Sữa</span><span>' + nl(c.sua).ten + ' · ' + money(nl(c.sua).gia) + '/hộp 1L</span>' +
     '<span>Sữa cho 1 kg</span><span><input class="inp num" type="number" step="0.1" min="1" data-cot="' + i + '" data-k="litKg" value="' + c.litKg + '" aria-label="Lít sữa cho 1 kg"> lít (2 lít ra 800g = 2,5)</span>' +
     '<span>Men mồi</span><span><input class="inp num" type="number" step="0.1" min="0" data-cot="' + i + '" data-k="menL" value="' + c.menL + '" aria-label="Hộp men mỗi lít"> hộp / 1 lít sữa (3 hộp cho 2 lít = 1,5)</span>' +
     '<span>Giá vốn cốt</span><b>' + money(baseKg(c.id)) + ' / kg · ' + money(baseKg(c.id) / 10) + ' / 100g</b></div></div>'; }).join('');
-  var viHtml = '<div class="tbl-wrap"><table><thead><tr><th>Vị</th><th class="r">Chi phí tạo vị cho 1 kg thành phẩm</th><th class="r">Hũ 100g</th><th class="r">Hũ 250g</th><th class="r">Hũ 450g</th></tr></thead><tbody>' +
-    VI.map(function (v, i) { return '<tr><td>' + v.ten + '</td><td class="r"><input class="inp num" style="width:110px" type="number" step="500" min="0" data-vi="' + i + '" data-k="cpv" value="' + v.cpv + '" aria-label="Chi phí vị mỗi kg"> đ</td>' + SIZES.map(function (z) { return '<td class="r">' + money(v.cpv * z / 1000) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>';
-  return head('Giá bán, công thức & giá vốn', 'Sửa giá bán, giá mua hoặc định mức ở đây. Giá vốn và lãi gộp tính lại ngay. Đơn cũ giữ giá lúc bán.') + vPrice() +
-    '<div class="card"><div class="toolbar"><h2>Giá đầu vào</h2><span class="sub">Đơn giá = giá mua ÷ số lượng trong lần mua</span></div><div class="tbl-wrap"><table><thead><tr><th>Nguyên liệu</th><th>Quy cách mua</th><th class="r">Giá mua</th><th class="r">Số lượng</th><th class="r">Đơn giá</th></tr></thead><tbody>' + input + '</tbody></table></div>' +
+  var viHtml = '<div class="tbl-wrap"><table class="stack"><thead><tr><th>Vị</th><th class="r">Chi phí tạo vị cho 1 kg thành phẩm</th><th class="r">Hũ 100g</th><th class="r">Hũ 250g</th><th class="r">Hũ 450g</th></tr></thead><tbody>' +
+    VI.map(function (v, i) { return '<tr><td class="h">' + v.ten + '</td><td class="r full-m" data-l="Chi phí tạo vị / 1 kg"><input class="inp num" style="width:110px" type="number" step="500" min="0" data-vi="' + i + '" data-k="cpv" value="' + v.cpv + '" aria-label="Chi phí vị mỗi kg"> đ</td>' + SIZES.map(function (z) { return '<td class="r" data-l="Hũ ' + z + 'g">' + money(v.cpv * z / 1000) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>';
+  if (!UI.gvVi || !VI.some(function (v) { return v.id === UI.gvVi; })) UI.gvVi = VI[0] && VI[0].id;
+  var GVT = [['ban', 'Giá bán'], ['vao', 'Đầu vào'], ['ct', 'Công thức'], ['von', 'Giá vốn']], sec = function (k) { return ' gvsec' + (UI.gv === k ? ' on' : ''); };
+  return head('Giá bán, công thức & giá vốn', 'Sửa giá bán, giá mua hoặc định mức ở đây. Giá vốn và lãi gộp tính lại ngay. Đơn cũ giữ giá lúc bán.') +
+    '<div class="chips gvtabs m-only" role="tablist">' + GVT.map(function (t) { return '<button type="button" role="tab" aria-selected="' + (UI.gv === t[0]) + '" class="chip' + (UI.gv === t[0] ? ' on' : '') + '" data-gv="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>' +
+    vPrice().replace('<div class="card">', '<div class="card' + sec('ban') + '">') +
+    '<div class="card' + sec('vao') + '"><div class="toolbar"><h2>Giá đầu vào</h2><span class="sub">Đơn giá = giá mua ÷ số lượng trong lần mua</span></div><div class="tbl-wrap"><table class="stack"><thead><tr><th>Nguyên liệu</th><th>Quy cách mua</th><th class="r">Giá mua</th><th class="r">Số lượng</th><th class="r">Đơn giá</th></tr></thead><tbody>' + input + '</tbody></table></div>' +
     '<div class="toolbar" style="justify-content:flex-start"><label for="khac" class="sub">Chi phí khác mỗi hũ (túi, thìa…)</label><input class="inp num" id="khac" type="number" min="0" step="100" data-khac="1" value="' + (CFG.khac || 0) + '"> <span class="sub">đ/hũ</span></div></div>' +
-    '<div class="grid g2">' + cotHtml + '</div>' +
-    '<div class="card"><div class="toolbar"><h2>Chi phí tạo vị</h2>' + (LIVE ? '<span class="sub">Lấy từ Sheet › Công thức</span>' : '<span class="sample">Số mẫu trong khoảng 10–18k, sếp sửa theo thực tế</span>') + '</div>' + viHtml + '<div class="note">Gồm đường, trà, bơ mè, nhãn, dâu… cho 1 kg thành phẩm. Hũ 100g = 1/10 số này.</div></div>' +
-    '<div class="card"><div class="toolbar"><h2>Giá vốn từng loại hũ</h2><div class="legend"><span><span class="pill p-good">≥55%</span></span><span><span class="pill p-warn">45–55%</span></span><span><span class="pill p-bad">&lt;45%</span></span></div></div>' +
-    '<div class="tbl-wrap"><table><thead><tr><th>Vị</th><th>Cốt</th><th class="c">Size</th><th class="r">Giá bán</th><th class="r hide-m">Sữa + men</th><th class="r hide-m">Tạo vị</th><th class="r hide-m">Hũ + tem</th><th class="r">Giá vốn</th><th class="r">Lãi gộp</th><th class="r">Biên</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="grid g2' + sec('ct') + '">' + cotHtml + '</div>' +
+    '<div class="card' + sec('ct') + '"><div class="toolbar"><h2>Chi phí tạo vị</h2>' + (LIVE ? '<span class="sub">Lấy từ Sheet › Công thức</span>' : '<span class="sample">Số mẫu trong khoảng 10–18k, sếp sửa theo thực tế</span>') + '</div>' + viHtml + '<div class="note">Gồm đường, trà, bơ mè, nhãn, dâu… cho 1 kg thành phẩm. Hũ 100g = 1/10 số này.</div></div>' +
+    '<div class="card' + sec('von') + '"><div class="toolbar"><h2>Giá vốn từng loại hũ</h2><div class="legend"><span><span class="pill p-good">≥55%</span></span><span><span class="pill p-warn">45–55%</span></span><span><span class="pill p-bad">&lt;45%</span></span></div></div>' +
+    '<div class="chips m-only" style="margin:4px 0 10px">' + VI.map(function (v) { return '<button type="button" class="chip' + (v.id === UI.gvVi ? ' on' : '') + '" data-gvvi="' + v.id + '">' + esc(v.ten) + '</button>'; }).join('') + '</div>' +
+    '<div class="tbl-wrap"><table class="stack gvt"><thead><tr><th>Vị</th><th>Cốt</th><th class="c">Size</th><th class="r">Giá bán</th><th class="r hide-m">Sữa + men</th><th class="r hide-m">Tạo vị</th><th class="r hide-m">Hũ + tem</th><th class="r">Giá vốn</th><th class="r">Lãi gộp</th><th class="r">Biên</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     '<div class="note">Chưa gồm điện, nước, nhân công, marketing, giao hàng. Các khoản này ghi ở Chi phí theo tháng để báo cáo lãi ròng không tính trùng.</div></div>';
 }
 
@@ -1122,10 +1151,12 @@ function vSet() {
 /* ===== Sự kiện ===== */
 document.addEventListener('click', function (e) {
   var sb = $('#n-sug'); if (sb && !sb.hidden && !e.target.closest('#n-sug,#n-dc')) sb.hidden = true;
-  var t = e.target.closest('[data-act],[data-of],[data-open],[data-pday],[data-kho],[data-kh],[data-month],[data-tr],[data-trl],[data-act2],[data-cust],[data-goto]');
+  var t = e.target.closest('[data-gv],[data-gvvi],[data-act],[data-of],[data-open],[data-pday],[data-kho],[data-kh],[data-month],[data-tr],[data-trl],[data-act2],[data-cust],[data-goto]');
   if (!t) return;
   if (t.dataset.goto !== undefined && t.dataset.goto) { if (t.getAttribute('href') === '#don-hang') UI.of = t.dataset.goto; if (t.getAttribute('href') === '#kho') UI.kho = t.dataset.goto; }
   if (t.dataset.of) { UI.of = t.dataset.of; render(); return; }
+  if (t.dataset.gv) { UI.gv = t.dataset.gv; render(); window.scrollTo(0, 0); return; }
+  if (t.dataset.gvvi) { UI.gvVi = t.dataset.gvvi; render(); return; }
   if (t.dataset.pday !== undefined) { UI.pday = +t.dataset.pday; render(); return; }
   if (t.dataset.kho) { UI.kho = t.dataset.kho; render(); return; }
   if (t.dataset.kh) { UI.kh = t.dataset.kh; render(); return; }
@@ -1229,7 +1260,17 @@ function saveLot() {
   var L = S.lots[S.lots.length - 1]; sync('lotAdd', { lot: { ma: L.ma, ngay: L.ngay, cot: c.ten, sua: L.sua, tp: L.tp, von: L.von, hsd: L.hsd, ghichu: L.ghichu }, use: [{ id: c.sua, sl: sua, gia: nl(c.sua).gia }, { id: 'men', sl: sua * c.menL, gia: nl('men').gia }] });
   save(); closeDrawer(); render(); toast('Đã lưu mẻ ' + ma + ' · ' + Math.round(tp / sua) + ' g/lít');
 }
-$('#menuBtn').addEventListener('click', function () { $('#side').classList.toggle('open'); });
+/* Menu trên điện thoại: mở/đóng, chạm ra ngoài hoặc bấm Esc để đóng */
+function menu(on) {
+  var sd = $('#side'), sc = $('#scrim'), mb = $('#menuBtn'); if (!sd) return;
+  if (!sc) { sc = document.createElement('div'); sc.id = 'scrim'; sc.hidden = true; sc.addEventListener('click', function () { menu(false); }); document.body.appendChild(sc); }
+  if (!$('#sideX')) { var x = document.createElement('button'); x.id = 'sideX'; x.type = 'button'; x.setAttribute('aria-label', 'Đóng menu'); x.textContent = '×'; x.addEventListener('click', function () { menu(false); }); sd.insertBefore(x, sd.firstChild); }
+  sd.classList.toggle('open', on); sc.hidden = !on; document.body.classList.toggle('menu-on', on); if (mb) mb.setAttribute('aria-expanded', on);
+  if (on) { var a = $('#nav a.on') || $('#nav a'); if (a) a.focus(); } else if (mb && sd.contains(document.activeElement)) mb.focus();
+}
+$('#menuBtn').addEventListener('click', function () { menu(!$('#side').classList.contains('open')); });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && $('#side').classList.contains('open')) menu(false); });
+menu(false);
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('#drawer').hidden) closeDrawer(); });
 window.addEventListener('hashchange', function () { closeDrawer(); render(); window.scrollTo(0, 0); });
 

@@ -108,9 +108,23 @@
   /* ---------- đầu trang ---------- */
   var mb = $('.menu-btn'), dr = $('#drawer');
   if (mb && dr) {
-    mb.addEventListener('click', function () { dr.hidden = false; mb.setAttribute('aria-expanded', 'true'); var a = $('a', dr); if (a) a.focus(); });
-    dr.addEventListener('click', function (e) { if (e.target === dr || e.target.closest('a')) { dr.hidden = true; mb.setAttribute('aria-expanded', 'false'); } });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !dr.hidden) { dr.hidden = true; mb.focus(); } });
+    var dw = $('.dw', dr), y0 = 0;
+    var shut = function (back) { if (dr.hidden) return; dr.classList.remove('on'); document.documentElement.classList.remove('dw-lock'); mb.setAttribute('aria-expanded', 'false'); setTimeout(function () { dr.hidden = true; }, 220); if (back !== false) mb.focus(); };
+    mb.addEventListener('click', function () {
+      var t = totals(); set('cartsum', t.hu ? t.hu + ' hũ · ' + fmt(t.hang) : 'Chưa có hũ nào');
+      dr.hidden = false; void dr.offsetWidth; dr.classList.add('on'); document.documentElement.classList.add('dw-lock'); mb.setAttribute('aria-expanded', 'true');
+      var x = $('.dw-x', dr); if (x) x.focus();
+      var s = $('.dw-stk', dr); if (s) { s.classList.remove('pop'); void s.offsetWidth; s.classList.add('pop'); }
+    });
+    dr.addEventListener('click', function (e) { if (e.target === dr || e.target.closest('[data-dwclose]')) shut(); else if (e.target.closest('a')) shut(false); });
+    document.addEventListener('keydown', function (e) {
+      if (dr.hidden) return;
+      if (e.key === 'Escape') { shut(); return; }
+      if (e.key === 'Tab') { var f = $$('a,button', dw), a = f[0], z = f[f.length - 1]; if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); } else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); } }
+    });
+    // vuốt sang trái để đóng
+    dw.addEventListener('touchstart', function (e) { y0 = e.touches[0].clientX; }, { passive: true });
+    dw.addEventListener('touchend', function (e) { if (y0 - e.changedTouches[0].clientX > 70) shut(false); }, { passive: true });
   }
   var ut = new URLSearchParams(location.search).get('utm_source'); if (ut) ls('mmm-utm', ut);
 
