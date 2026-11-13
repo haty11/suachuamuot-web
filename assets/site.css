@@ -158,9 +158,18 @@ table.pt .r{text-align:right}
 .cbx.feat{border:2px solid var(--berry)}
 .cbx h3{font-size:30px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .sets{display:flex;flex-direction:column;gap:10px}
-.set{display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:16px;border:1.5px solid var(--line2);background:#fff;cursor:pointer;text-align:left;font:600 15px var(--body);color:var(--ink)}
+.set{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;border:1.5px solid var(--line2);background:#fff;cursor:pointer;text-align:left;font:600 15px var(--body);color:var(--ink);min-height:64px;transition:border-color .15s,background .15s}
+.set:hover{border-color:var(--berry-l)}
 .set.on{border-color:var(--berry);background:var(--berry-s)}
-.set .sws{display:flex;gap:4px}
+.set .sws{display:flex;flex:none;padding-left:8px}
+.set .sws .sw{width:36px;height:36px;margin-left:-8px;border:2px solid #fff;box-shadow:0 1px 3px rgba(74,31,43,.15)}
+.set-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.set-t small{font:700 11px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.set.on .set-t small{color:var(--berry)}
+.set-n{line-height:1.4}.set-n [data-vt]{white-space:nowrap}.set-n i{font-style:normal;color:var(--berry-l);margin:0 2px}
+.set-ck{width:22px;height:22px;flex:none;border-radius:999px;border:2px solid var(--line2);background:#fff;position:relative}
+.set.on .set-ck{border-color:var(--berry);background:var(--berry)}
+.set.on .set-ck::after{content:'';position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
 .vt{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .vt button{display:flex;align-items:center;gap:8px;min-height:48px;padding:0 12px;border-radius:14px;border:1.5px solid var(--line2);background:#fff;font:600 14px var(--body);color:var(--ink);cursor:pointer;text-align:left}
 .vt button.on{border-color:var(--berry);background:var(--berry-s);color:var(--berry-d)}
@@ -425,6 +434,7 @@ button.lk{border:0;background:none;color:var(--berry);text-decoration:underline;
 @media (max-width:900px){
   .sec{padding:44px 0}
   .vt{grid-template-columns:repeat(3,1fr);gap:6px}
+  .set{gap:10px;padding:10px 12px}.set .sws .sw{width:30px;height:30px;margin-left:-9px}.set-n{font-size:14px}
   .vt button{flex-direction:column;justify-content:center;gap:4px;padding:6px 4px;font-size:13px;text-align:center;line-height:1.2;min-height:64px}
   .vt .sw{width:24px;height:24px}
   .vlist{gap:6px}.vlist li{font-size:13px;padding:6px 8px;gap:6px}.vlist .sw{width:22px;height:22px}
