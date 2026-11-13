@@ -1306,7 +1306,7 @@ async function api(action, data) {
   var r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ admin: 1, token: token, action: action }, data || {})) }).then(function (x) { return x.json(); });
   if (!r.ok) {
     if (r.error === 'auth') { token = ''; ls(TKEY, null); showLogin('Phiên đăng nhập đã hết hạn, sếp đăng nhập lại nhé.'); }
-    if (r.error === 'denied') { token = ''; ls(TKEY, null); ls(DKEY, null); try { google.accounts.id.disableAutoSelect(); } catch (e) {} gate('<p>Tài khoản <b>' + esc(r.email) + '</b> chưa được cấp quyền.</p><p class="sub">Thêm email này vào Sheet › Cài đặt › "Email được vào trang quản lý".</p>'); }
+    if (r.error === 'denied') { token = ''; ls(TKEY, null); ls(DKEY, null); try { google.accounts.id.disableAutoSelect(); } catch (e) {} denied(); }
     throw r;
   }
   return r;
@@ -1340,7 +1340,13 @@ function loadGsi() {
   s.onerror = function () { if (!token) gate('<p class="neg">Không tải được nút đăng nhập Google.</p><p class="sub">Tắt chặn quảng cáo / chặn theo dõi cho trang này rồi tải lại.</p>'); };
   document.head.appendChild(s);
 }
-function noClient() { gate('<p>Trang quản lý chưa được bật đăng nhập Google. Làm 1 lần:</p><ol class="steps-ol"><li>Vào <b>console.cloud.google.com</b> › tạo dự án "Sua Chua Muot".</li><li>APIs &amp; Services › <b>OAuth consent screen</b> › External › điền tên app, email › lưu.</li><li>Credentials › <b>Create credentials › OAuth client ID</b> › Web application.</li><li>Authorized JavaScript origins: <code>https://suachuamuot.com</code> › Create.</li><li>Chép Client ID, dán vào Sheet › tab <b>Cài đặt</b> › dòng <b>Admin · Google Client ID</b>.</li></ol>'); }
+function noClient() { gate('<p>Trang này tạm thời chưa mở.</p><p class="sub">Mời bạn ghé <a href="/">suachuamuot.com</a> để chọn sữa chua nhé.</p>'); }
+/* Tài khoản không thuộc shop: chào, không lộ thông tin cài đặt, tự về trang chủ */
+function denied() {
+  var n = 5;
+  gate('<p style="font-size:20px;font-weight:700;margin:4px 0 0">Chào bạn!</p><p>Khu vực này chỉ dành cho nhân viên Mướt Mườn Mượt.</p><p class="sub">Mời bạn ghé cửa hàng để chọn sữa chua nhé. Tự chuyển về trang chủ sau <b id="dn-s">' + n + '</b> giây…</p><a class="btn pri" href="/" style="align-self:flex-start;text-decoration:none">Về trang chủ ngay</a>');
+  var t = setInterval(function () { n--; var x = document.getElementById('dn-s'); if (x) x.textContent = n; if (n <= 0) { clearInterval(t); location.replace('/'); } }, 1000);
+}
 async function boot() {
   if (!LIVE) { load(); save(); render(); return; }
   var t = ls(TKEY); if (t && jwtExp(t) > Date.now() + 60e3) token = t; else if (t) ls(TKEY, null);
@@ -1373,7 +1379,7 @@ async function start() {
     if (cached) { toast('Chưa cập nhật được từ Sheet, đang hiện dữ liệu lần trước.'); return; }
     $('#gate').classList.remove('ld');
     var m = e && e.error ? (ERRMSG[e.error] || e.error) + (e.msg ? ' <code>' + esc(e.msg) + '</code>' : '') : 'Không đọc được phản hồi từ máy chủ. <code>' + esc(String(e && e.message || e)) + '</code>';
-    gate('<p class="neg">Chưa tải được dữ liệu.</p><p class="sub">' + m + '</p><p class="sub">Chụp màn hình này gửi Claude. <button type="button" onclick="location.reload()">Thử lại</button> <button type="button" onclick="logout()">Đăng xuất</button></p>');
+    gate('<p class="neg">Chưa tải được dữ liệu.</p><p class="sub">' + m + '</p><p class="sub">Chụp màn hình này gửi người quản trị. <button type="button" onclick="location.reload()">Thử lại</button> <button type="button" onclick="logout()">Đăng xuất</button></p>');
   }
 }
 function apply(r) {
