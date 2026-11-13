@@ -225,7 +225,46 @@
       c._set(a.dataset.choose); ls('mmm-pick', { vi: a.dataset.choose }); var t = $('#tu-chon'); if (t) t.scrollIntoView({ behavior: 'smooth' });
     });
   });
-  $$('[data-quick]').forEach(function (b) { b.addEventListener('click', function (e) { e.preventDefault(); if (!addCart({ t: 'le', vi: b.dataset.quick, cot: 'Thanh trùng', size: 100, sl: 1, note: '' })) return; toast('Đã thêm 1 hũ ' + fl(b.dataset.quick).ngan + ' 100g', '03-ngon-cai'); }); });
+  $$('[data-quick]').forEach(function (b) { b.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); picker(b.dataset.quick, b); }); });
+
+  /* ---------- bảng chọn nhanh (điện thoại): bấm + → chọn cốt, dung tích, số lượng → thêm vào giỏ ---------- */
+  var PS = null;
+  function picker(ma, from) {
+    if (off(ma)) { toast(fl(ma).ngan + ' đang tạm hết, bạn chọn vị khác nhé'); return; }
+    if (!PS) {
+      var el = document.createElement('div'); el.className = 'psheet'; el.hidden = true;
+      el.innerHTML = '<div class="ps" role="dialog" aria-modal="true" aria-labelledby="ps-t"><div class="ps-grab" aria-hidden="true"></div>' +
+        '<div class="ps-hd"><img class="ps-img" alt="" width="64" height="64"><div><h3 id="ps-t" data-o="ps-name"></h3><p class="note" data-o="ps-mo"></p></div><button type="button" class="ps-x" data-psx aria-label="Đóng">×</button></div>' +
+        '<p class="ps-lbl">Cốt sữa</p><div class="g2">' + COTS.map(function (c) { return '<button type="button" class="opt" data-ps="cot:' + c + '"><b>' + (c === 'A2' ? 'Cốt A2' : 'Cốt thanh trùng') + '</b><small data-o="ps-c-' + (c === 'A2' ? 'a2' : 'tt') + '"></small></button>'; }).join('') + '</div>' +
+        '<p class="ps-lbl">Dung tích</p><div class="g3">' + SIZES.map(function (z) { return '<button type="button" class="opt" data-ps="size:' + z + '"><b>' + z + 'g</b><small data-o="ps-p' + z + '"></small></button>'; }).join('') + '</div>' +
+        '<div class="ps-ft"><div class="qty"><button type="button" data-psq="-1" aria-label="Giảm số lượng">−</button><span data-o="ps-sl">1</span><button type="button" data-psq="1" aria-label="Tăng số lượng">+</button></div>' +
+        '<button type="button" class="btn btn-p" data-psadd>Thêm vào giỏ</button></div></div>';
+      document.body.appendChild(el);
+      PS = { el: el, st: null, from: null };
+      var shut = function () { el.classList.remove('on'); document.documentElement.classList.remove('dw-lock'); setTimeout(function () { el.hidden = true; }, 200); if (PS.from) try { PS.from.focus(); } catch (x) {} };
+      PS.shut = shut;
+      el.addEventListener('click', function (e) {
+        var t = e.target; if (t === el || t.closest('[data-psx]')) { shut(); return; }
+        var b = t.closest('button'); if (!b) return; var s = PS.st;
+        if (b.dataset.ps) { var p = b.dataset.ps.split(':'); s[p[0]] = p[0] === 'size' ? +p[1] : p[1]; draw(); return; }
+        if (b.dataset.psq) { s.sl = Math.max(1, Math.min(30, s.sl + +b.dataset.psq)); draw(); return; }
+        if (b.dataset.psadd !== undefined) { if (!addCart({ t: 'le', vi: s.vi, cot: s.cot, size: s.size, sl: s.sl, note: '' })) return; shut(); if (PAGE === 'cart') drawCart(); toast('Đã thêm ' + s.sl + ' hũ ' + fl(s.vi).ngan + ' ' + s.size + 'g vào giỏ', '03-ngon-cai'); }
+      });
+      document.addEventListener('keydown', function (e) { if (!el.hidden && e.key === 'Escape') shut(); });
+      var y0 = 0, ps = $('.ps', el); ps.addEventListener('touchstart', function (e) { y0 = e.touches[0].clientY; }, { passive: true }); ps.addEventListener('touchend', function (e) { if (e.changedTouches[0].clientY - y0 > 80 && ps.scrollTop <= 0) shut(); }, { passive: true });
+    }
+    function draw() {
+      var s = PS.st, el = PS.el, v = viOf(s.vi) || {}, u = unit(s.vi, s.cot, s.size);
+      set('ps-name', v.ten || fl(s.vi).ngan, el); set('ps-mo', v.moTa || '', el); $('.ps-img', el).src = img(s.vi);
+      $$('[data-ps]', el).forEach(function (b) { var p = b.dataset.ps.split(':'), on = String(s[p[0]]) === p[1]; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+      SIZES.forEach(function (z) { set('ps-p' + z, fmt(unit(s.vi, s.cot, z)), el); });
+      set('ps-c-tt', 'Sữa tươi Mộc Châu · ' + fmt(unit(s.vi, 'Thanh trùng', s.size)), el); set('ps-c-a2', 'Sữa đạm A2A2 · ' + fmt(unit(s.vi, 'A2', s.size)), el);
+      set('ps-sl', s.sl, el); $('[data-psadd]', el).textContent = 'Thêm vào giỏ · ' + fmt(u * s.sl);
+    }
+    PS.st = { vi: maOf(ma), cot: 'Thanh trùng', size: 250, sl: 1 }; PS.from = from; draw();
+    PS.el.hidden = false; void PS.el.offsetWidth; PS.el.classList.add('on'); document.documentElement.classList.add('dw-lock');
+    var f = $('[data-ps="cot:Thanh trùng"]', PS.el); if (f) f.focus();
+  }
 
   /* ---------- combo ---------- */
   $$('[data-combo]').forEach(function (root) {
@@ -326,7 +365,7 @@
     var b = e.target.closest('button'); if (!b) return; var c = cart();
     if (b.dataset.d) { var it = c[+b.dataset.i]; it.sl = Math.max(1, Math.min(30, it.sl + +b.dataset.d)); saveCart(c); drawCart(); }
     else if (b.dataset.del) { c.splice(+b.dataset.del, 1); saveCart(c); drawCart(); toast('Đã bỏ khỏi giỏ'); }
-    else if (b.dataset.quick2) { if (!addCart({ t: 'le', vi: b.dataset.quick2, cot: 'Thanh trùng', size: 100, sl: 1, note: '' })) return; drawCart(); toast('Đã thêm 1 hũ ' + fl(b.dataset.quick2).ngan); }
+    else if (b.dataset.quick2) { picker(b.dataset.quick2, b); return; }
   });
 
   /* ---------- trang đặt hàng ---------- */
@@ -339,8 +378,9 @@
     for (var i = 0; i < D.soNgay; i++) {
       var d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i), id = iso(d);
       var khung = D.khung.filter(function (x) { return mode === 'Giao' ? x.giao : x.lay; }).map(function (x) {
-        var m = x.gio.match(/(\d{1,2}):(\d{2})/), st = m ? +m[1] * 60 + +m[2] : 0;
-        var past = i === 0 && st - D.khoaPhut < mins;
+        // khung giờ còn nhận đơn tới GIỜ KẾT THÚC trừ "Khoá khung giờ trước (phút)" (VD 15:00 – 17:00, khoá 0 phút → nhận tới 17:00)
+        var m = x.gio.match(/(\d{1,2}):(\d{2})(?:\D+(\d{1,2}):(\d{2}))?/), en = m ? (m[3] ? +m[3] * 60 + +m[4] : +m[1] * 60 + +m[2] + 120) : 0;
+        var past = i === 0 && en - (D.khoaPhut || 0) <= mins;
         var het = (D.het || []).some(function (h) { return h.ngay === id && (!h.gio || h.gio === x.gio) && (!h.ap || /cả|hai/i.test(h.ap) || (mode === 'Giao' ? /giao/i : /lấy/i).test(h.ap)); });
         return { gio: x.gio, ok: !past && !het, past: past, het: het };
       });
