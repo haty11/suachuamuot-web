@@ -747,7 +747,7 @@ function vKho() {
   if (UI.kho === 'nl') {
     body = '<div class="tbl-wrap"><table><thead><tr><th>Nguyên liệu</th><th>Nhóm</th><th class="r">Tồn</th><th class="r hide-m">Báo khi dưới</th><th>Tình trạng</th><th class="r">Giá hiện tại</th><th class="hide-m">Nhà cung cấp</th><th></th></tr></thead><tbody>' +
       S.nl.map(function (x) { var st = x.ton <= 0 ? '<span class="pill p-bad">Hết</span>' : x.ton <= x.canh ? '<span class="pill p-warn">Sắp hết</span>' : '<span class="pill p-good">Đủ</span>';
-        return '<tr><td><b>' + x.ten + '</b></td><td>' + x.nhom + '</td><td class="r">' + fmtQ(x.ton, x.dv) + '</td><td class="r hide-m">' + fmtQ(x.canh, x.dv) + '</td><td>' + st + '</td><td class="r">' + money(x.gia) + '/' + x.dv + '<div class="sub">' + esc(x.mua.qc) + '</div></td><td class="hide-m">' + esc(x.ncc) + '</td><td><button class="btn sm" type="button" data-act="nhap" data-id="' + x.id + '">Nhập</button></td></tr>'; }).join('') + '</tbody></table></div>' +
+        return '<tr><td><b>' + x.ten + '</b></td><td>' + x.nhom + '</td><td class="r">' + fmtQ(x.ton, x.dv) + '</td><td class="r hide-m">' + fmtQ(x.canh, x.dv) + '</td><td>' + st + '</td><td class="r">' + money(x.gia) + '/' + x.dv + '<div class="sub">' + esc(x.mua.qc) + '</div></td><td class="hide-m">' + esc(x.ncc) + '</td><td><button class="btn sm" type="button" data-act="nhap" data-id="' + x.id + '">Nhập</button> <button class="btn ghost sm" type="button" data-act="ton" data-id="' + x.id + '">Sửa tồn</button></td></tr>'; }).join('') + '</tbody></table></div>' +
       '<div class="note">Nhập hàng với giá mới thì giá hiện tại đổi theo, giá vốn dự kiến các hũ cập nhật ngay. Đơn cũ giữ giá vốn lúc bán.</div>';
   } else if (UI.kho === 'du') {
     var du = S.du.filter(function (x) { return x.sl > 0; }).sort(function (a, b) { return a.hsd < b.hsd ? -1 : 1; });
@@ -757,10 +757,20 @@ function vKho() {
       '<div class="note">Huỷ hũ quá hạn sẽ ghi chi phí hao huỷ vào báo cáo lãi lỗ.</div>';
   } else {
     body = '<div class="tbl-wrap"><table><thead><tr><th>Thời gian</th><th>Loại</th><th>Nội dung</th><th class="r">SL</th><th class="r">Đơn giá</th></tr></thead><tbody>' +
-      S.hist.slice().reverse().map(function (h) { var x = h.nl ? nl(h.nl) : null; return '<tr><td>' + h.t.slice(5).replace(/^(\d\d)-(\d\d)/, '$2/$1') + '</td><td><span class="pill ' + (h.loai === 'Nhập' ? 'p-good' : h.loai === 'Huỷ' ? 'p-bad' : 'p-info') + '">' + h.loai + '</span></td><td>' + (x ? x.ten + ' · ' : '') + esc(h.ghi) + '</td><td class="r">' + (x ? fmtQ(h.sl, x.dv) : h.sl) + '</td><td class="r">' + (h.gia ? money(h.gia) : '') + '</td></tr>'; }).join('') + '</tbody></table></div>';
+      S.hist.slice().reverse().map(function (h) { var x = h.nl ? nl(h.nl) : null; return '<tr><td>' + h.t.slice(5).replace(/^(\d\d)-(\d\d)/, '$2/$1') + '</td><td><span class="pill ' + (h.loai === 'Nhập' ? 'p-good' : h.loai === 'Huỷ' ? 'p-bad' : h.loai === 'Điều chỉnh' ? 'p-warn' : 'p-info') + '">' + h.loai + '</span></td><td>' + (x ? x.ten + ' · ' : '') + esc(h.ghi) + '</td><td class="r">' + (x ? (h.loai === 'Điều chỉnh' ? (h.sl > 0 ? '+' : h.sl < 0 ? '−' : '') + fmtQ(Math.abs(h.sl), x.dv) : fmtQ(h.sl, x.dv)) : h.sl) + '</td><td class="r">' + (h.gia ? money(h.gia) : '') + '</td></tr>'; }).join('') + '</tbody></table></div>';
   }
   return head('Kho', 'Nguyên liệu, hũ dư theo lô và lịch sử nhập xuất.') + '<div class="chips">' + tabs.map(function (t) { return '<button type="button" class="chip' + (UI.kho === t[0] ? ' on' : '') + '" data-kho="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div><div class="card">' + body + '</div>';
 }
+function tonDrawer(id) {
+  var x = nl(id);
+  openDrawer('<div class="ph"><div><h2>Kiểm kho · ' + x.ten + '</h2><div class="sub">Trên hệ thống đang ghi ' + fmtQ(x.ton, x.dv) + ' · giá ' + money(x.gia) + '/' + x.dv + '</div></div><button class="x" type="button" data-act="close" aria-label="Đóng">×</button></div>' +
+    '<div class="card"><div class="form"><div class="fld"><label for="k-ton">Số đếm thực tế (' + x.dv + ')</label><input class="inp" id="k-ton" type="number" min="0" step="any" value="' + x.ton + '"></div>' +
+    '<div class="fld"><label>Chênh lệch</label><div id="k-lech" class="sub" style="padding:10px 0;font-weight:600">Chưa đổi</div></div>' +
+    '<div class="fld full"><label for="k-ghi">Lý do (không bắt buộc)</label><input class="inp" id="k-ghi" maxlength="200" placeholder="VD: đếm lại cuối tuần, đổ hỏng 1 hộp, quà tặng…"></div></div>' +
+    '<p class="note">Lưu xong, tab Nguyên liệu trong Sheet đổi sang số mới. Tab Nhập xuất kho ghi 1 dòng "Điều chỉnh" kèm số chênh lệch để sếp theo dõi hao hụt.</p></div>' +
+    '<div class="chips"><button class="btn pri" type="button" data-act="save-ton" data-id="' + id + '">Lưu số tồn</button><button class="btn ghost" type="button" data-act="close">Huỷ</button></div>');
+}
+function tonLech(x, v) { var d = Math.round((v - x.ton) * 1000) / 1000; return d === 0 ? 'Không đổi' : (d > 0 ? '+' : '−') + fmtQ(Math.abs(d), x.dv) + ' · ' + (d > 0 ? '+' : '−') + money(Math.abs(d) * x.gia); }
 function nhapDrawer(id) {
   var x = nl(id);
   openDrawer('<div class="ph"><div><h2>Nhập ' + x.ten + '</h2><div class="sub">Đang có ' + fmtQ(x.ton, x.dv) + ' · giá hiện tại ' + money(x.gia) + '/' + x.dv + '</div></div><button class="x" type="button" data-act="close" aria-label="Đóng">×</button></div>' +
@@ -1153,6 +1163,13 @@ document.addEventListener('click', function (e) {
   if (a === 'new-lot') { lotDrawer(); return; }
   if (a === 'save-lot') { saveLot(); return; }
   if (a === 'nhap') { nhapDrawer(t.dataset.id); return; }
+  if (a === 'ton') { tonDrawer(t.dataset.id); return; }
+  if (a === 'save-ton') { var xt = nl(t.dataset.id), vt = parseFloat(String($('#k-ton').value).replace(',', '.')), gh = $('#k-ghi').value.trim();
+    if (!(vt >= 0)) { toast('Nhập số tồn từ 0 trở lên'); return; }
+    var dl = Math.round((vt - xt.ton) * 1000) / 1000; if (dl === 0) { closeDrawer(); toast('Số tồn không đổi'); return; }
+    var cu = xt.ton; xt.ton = vt; sync('nlSet', { id: xt.id, ton: vt, ghi: gh });
+    S.hist.push({ t: stamp(), loai: 'Điều chỉnh', nl: xt.id, sl: dl, gia: xt.gia, ghi: 'Kiểm kho: ' + fmtQ(cu, xt.dv) + ' → ' + fmtQ(vt, xt.dv) + (gh ? ' · ' + gh : '') });
+    save(); closeDrawer(); render(); toast(xt.ten + ': tồn ' + fmtQ(vt, xt.dv) + ' (' + (dl > 0 ? '+' : '−') + fmtQ(Math.abs(dl), xt.dv) + ')'); return; }
   if (a === 'save-nhap') { var x = nl(t.dataset.id), q = +$('#i-sl').value, g = +$('#i-gia').value; if (!(q > 0)) { toast('Nhập số lượng lớn hơn 0'); return; } x.ton += q; sync('nlImport', { id: x.id, sl: q, gia: g > 0 ? g : x.gia, ncc: $('#i-ncc').value }); if (g > 0) { x.gia = g; x.mua.gia = Math.round(g * x.mua.sl); } x.ncc = $('#i-ncc').value; S.hist.push({ t: stamp(), loai: 'Nhập', nl: x.id, sl: q, gia: x.gia, ghi: x.ncc }); save(); closeDrawer(); render(); toast('Đã nhập ' + fmtQ(q, x.dv) + ' ' + x.ten); return; }
   if (a === 'du-ban' || a === 'du-huy') { var d = S.du[+t.dataset.i]; d.sl--; sync('duAdjust', { r: d._r, op: a === 'du-huy' ? 'huy' : 'ban' }); S.hist.push({ t: stamp(), loai: a === 'du-ban' ? 'Xuất bán' : 'Huỷ', nl: '', sl: 1, gia: a === 'du-huy' ? d.von : 0, ghi: (a === 'du-ban' ? 'Bán hũ dư ' : 'Huỷ hũ ') + itemName(d) + ' · lô ' + d.lo }); save(); render(); toast(a === 'du-ban' ? 'Đã trừ 1 hũ dư' : 'Đã ghi huỷ 1 hũ'); return; }
   if (a === 'add-cp') { var tien = +$('#c-tien').value, nd = $('#c-nd').value.trim(); if (!(tien > 0) || !nd) { toast('Điền nội dung và số tiền'); return; } S.cp.push({ ngay: $('#c-ngay').value || iso(TODAY), nhom: $('#c-nhom').value, nd: nd, tien: tien }); sync('cpAdd', S.cp[S.cp.length - 1]); save(); render(); toast('Đã ghi ' + money(tien)); return; }
@@ -1166,6 +1183,7 @@ document.addEventListener('input', function (e) {
   if (t.dataset.c !== undefined && NEWO) { var cc = NEWO.combos[+t.dataset.c], f = t.dataset.cf.split('.'); if (f.length > 1) cc[f[0]][f[1]] = t.value; else cc[f[0]] = f[0] === 'set' ? +t.value : t.value; newOrderDrawer(); return; }
   if (t.dataset.l !== undefined && NEWO) { NEWO.touched = 1; var l = NEWO.lines[+t.dataset.l]; l[t.dataset.f] = t.dataset.f === 'size' || t.dataset.f === 'sl' ? Math.max(1, +t.value || 1) : t.value; if (t.tagName === 'SELECT') newOrderDrawer(); return; }
   if (t.id === 'shiptt') return;
+  if (t.id === 'k-ton') { var kb = $('[data-act="save-ton"]'), kx = kb && nl(kb.dataset.id), kv = parseFloat(String(t.value).replace(',', '.')), kl = $('#k-lech'); if (kx && kl) kl.textContent = kv >= 0 ? tonLech(kx, kv) : '—'; return; }
   if (t.dataset.ce && CE) { var cf = t.dataset.ce, cx = CE.vi[CE.i]; cx[cf] = t.value; CE.touched = 1; if (CE.all[cf]) CE.vi.forEach(function (y) { y[cf] = t.value; }); if (cf === 'ten') { var chip = $('[data-act="ce-pick"][data-i="' + CE.i + '"]'); if (chip) chip.textContent = t.value || '(chưa đặt tên)'; } ceMark(); return; }
   if (t.id === 'gcs') { var o = S.orders.find(function (x) { return x.ma === t.dataset.ma; }); o.ghichuShop = t.value; save(); syncLater('n' + o.ma, 'orderNote', { ma: o.ma, text: t.value }); return; }
   if (t.id === 'cnote') { S.notes[t.dataset.sdt] = t.value; save(); syncLater('c' + t.dataset.sdt, 'custNote', { sdt: t.dataset.sdt, text: t.value }); return; }
