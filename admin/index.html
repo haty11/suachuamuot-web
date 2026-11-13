@@ -754,9 +754,12 @@ function vProd() {
     '</tbody></table></div><div class="note">Hao hụt so với định mức 400 g thành phẩm / 1 lít sữa. Giá vốn/kg tính từ sữa và men thực dùng của mẻ.</div></div>';
 }
 function fmtQ(q, dv) { if (dv === 'lít') return (Math.round(q * 10) / 10).toString().replace('.', ',') + ' lít'; if (dv === 'g' && q >= 1000) return (q / 1000).toFixed(2).replace('.', ',') + ' kg'; return Math.ceil(q) + ' ' + dv; }
+function suaList() { return S.nl.filter(function (x) { return /sữa/i.test(x.nhom); }); }
+function suaOpts(sel) { return suaList().map(function (x) { return '<option value="' + esc(x.id) + '"' + (x.id === sel ? ' selected' : '') + '>' + esc(x.ten) + ' · ' + money(x.gia) + '/' + esc(x.dv) + '</option>'; }).join(''); }
 function lotDrawer() {
-  openDrawer('<div class="ph"><div><h2>Ghi mẻ đã làm</h2><div class="sub">Tạo lô mới, trừ sữa và men trong kho</div></div><button class="x" type="button" data-act="close" aria-label="Đóng">×</button></div>' +
+  openDrawer('<div class="ph"><div><h2>Ghi mẻ đã làm</h2><div class="sub">Tạo lô mới, trừ đúng loại sữa đã dùng và men trong kho</div></div><button class="x" type="button" data-act="close" aria-label="Đóng">×</button></div>' +
     '<div class="card"><div class="form"><div class="fld"><label for="l-cot">Cốt</label><select class="inp" id="l-cot">' + COT.map(function (c) { return '<option value="' + c.id + '">' + c.ten + '</option>'; }).join('') + '</select></div>' +
+    '<div class="fld"><label for="l-loai">Loại sữa dùng mẻ này</label><select class="inp" id="l-loai">' + suaOpts(COT[0].sua) + '</select></div>' +
     '<div class="fld"><label for="l-ngay">Ngày làm</label><input class="inp" id="l-ngay" type="date" value="' + iso(TODAY) + '"></div>' +
     '<div class="fld"><label for="l-sua">Sữa vào (lít)</label><input class="inp" id="l-sua" type="number" step="0.5" min="0.5" value="6"></div>' +
     '<div class="fld"><label for="l-tp">Thành phẩm thu được (g)</label><input class="inp" id="l-tp" type="number" step="10" min="1" value="2350"></div>' +
@@ -860,7 +863,7 @@ function vPrice() {
     '<div class="toolbar" style="justify-content:flex-start;gap:10px"><label class="sub" for="pe-mix">Phụ thu vị Mix</label><input class="inp num" id="pe-mix" type="number" min="0" step="1000" data-pe="mix" value="' + PE.mix + '"> <span class="sub">đ/hũ</span></div>' +
     '<div class="tbl-wrap"><table class="stack"><thead><tr><th>Cốt</th><th class="c">Size</th><th class="r">Giá Original</th><th class="r">Giá Mix</th><th class="r">Lãi Original</th><th class="r">Lãi Mix</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     '<h3 style="margin-top:16px">Combo</h3><div class="tbl-wrap"><table class="stack"><thead><tr><th>Combo</th><th class="r">Giá thanh trùng</th><th class="r">Giá A2</th><th class="r">Giảm</th><th class="c">Freeship</th><th class="c">Đang bán</th></tr></thead><tbody>' + cbs + '</tbody></table></div>' +
-    '<h3 style="margin-top:16px">Vị đang bán</h3><div class="chips">' + vis + '</div><p class="note">Bỏ tích để tạm ẩn vị trên web (ví dụ hết nguyên liệu).</p></div>';
+    '<h3 style="margin-top:16px">Vị đang bán</h3><div class="chips">' + vis + '</div><p class="note">Bỏ tích là <b>lưu luôn</b>, không cần bấm Lưu giá. Web hiện "Tạm hết" ở vị đó sau khoảng 2 phút, khách không đặt được (combo có vị đó cũng tạm hết). Tích lại để mở bán.</p></div>';
 }
 function savePrices() {
   if (!peDirty()) return;
@@ -884,10 +887,13 @@ function vCost() {
       '<td class="r" data-l="Số lượng"><input class="inp num" style="width:70px" type="number" min="1" step="any" data-mua="' + x.id + '" data-k="sl" value="' + x.mua.sl + '" aria-label="Số lượng trong lần mua"> <span class="sub">' + x.dv + '</span></td>' +
       '<td class="r" data-l="Đơn giá"><b>' + money(x.gia) + '</b><div class="sub">/' + x.dv + '</div></td></tr>';
   }).join('');
-  var cotHtml = COT.map(function (c, i) { return '<div class="card flat"><h3>Cốt ' + c.ten + '</h3><div class="kv"><span>Sữa</span><span>' + nl(c.sua).ten + ' · ' + money(nl(c.sua).gia) + '/hộp 1L</span>' +
+  var cotHtml = COT.map(function (c, i) { return '<div class="card flat"><h3>Cốt ' + c.ten + '</h3><div class="kv"><span>Sữa chính</span><span><select class="inp" data-cotsua="' + i + '" aria-label="Sữa chính của cốt ' + esc(c.ten) + '" style="width:100%">' + suaOpts(c.sua) + '</select><span class="sub">Dùng tính giá vốn dự kiến. Mẻ nào dùng loại khác thì chọn lúc ghi mẻ.</span></span>' +
     '<span>Sữa cho 1 kg</span><span><input class="inp num" type="number" step="0.1" min="1" data-cot="' + i + '" data-k="litKg" value="' + c.litKg + '" aria-label="Lít sữa cho 1 kg"> lít (2 lít ra 800g = 2,5)</span>' +
     '<span>Men mồi</span><span><input class="inp num" type="number" step="0.1" min="0" data-cot="' + i + '" data-k="menL" value="' + c.menL + '" aria-label="Hộp men mỗi lít"> hộp / 1 lít sữa (3 hộp cho 2 lít = 1,5)</span>' +
-    '<span>Giá vốn cốt</span><b>' + money(baseKg(c.id)) + ' / kg · ' + money(baseKg(c.id) / 10) + ' / 100g</b></div></div>'; }).join('');
+    '<span>Giá vốn cốt</span><b>' + money(baseKg(c.id)) + ' / kg · ' + money(baseKg(c.id) / 10) + ' / 100g</b>' +
+    suaList().filter(function (x) { var fam = function (t) { return String(t).toLowerCase().replace(/\s*\(?(có|không|ít) đường\)?/g, '').trim(); }; return x.id !== c.sua && !COT.some(function (o) { return o !== c && o.sua === x.id; }) && (x.id.indexOf(c.sua) === 0 || c.sua.indexOf(x.id) === 0 || fam(x.ten) === fam(nl(c.sua).ten)); }).map(function (x) { var kg = c.litKg * x.gia + c.litKg * c.menL * nl('men').gia, d = kg - baseKg(c.id);
+      return '<span class="sub">Nếu dùng ' + esc(x.ten) + '</span><span class="sub">' + money(kg) + ' / kg · ' + money(kg / 10) + ' / 100g (' + (d >= 0 ? '+' : '−') + money(Math.abs(d / 10)) + ' / 100g)</span>'; }).join('') +
+    '</div></div>'; }).join('');
   var viHtml = '<div class="tbl-wrap"><table class="stack"><thead><tr><th>Vị</th><th class="r">Chi phí tạo vị cho 1 kg thành phẩm</th><th class="r">Hũ 100g</th><th class="r">Hũ 250g</th><th class="r">Hũ 450g</th></tr></thead><tbody>' +
     VI.map(function (v, i) { return '<tr><td class="h">' + v.ten + '</td><td class="r full-m" data-l="Chi phí tạo vị / 1 kg"><input class="inp num" style="width:110px" type="number" step="500" min="0" data-vi="' + i + '" data-k="cpv" value="' + v.cpv + '" aria-label="Chi phí vị mỗi kg"> đ</td>' + SIZES.map(function (z) { return '<td class="r" data-l="Hũ ' + z + 'g">' + money(v.cpv * z / 1000) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>';
   if (!UI.gvVi || !VI.some(function (v) { return v.id === UI.gvVi; })) UI.gvVi = VI[0] && VI[0].id;
@@ -1225,11 +1231,17 @@ document.addEventListener('change', function (e) {
   if (t.dataset.l !== undefined && NEWO && t.tagName === 'INPUT') { newOrderDrawer(); return; }
   if (t.dataset.mua) { var x = nl(t.dataset.mua); if (t.dataset.k === 'qc') x.mua.qc = t.value; else { var n = parseFloat(t.value); if (n > 0) x.mua[t.dataset.k] = n; } x.gia = x.mua.gia / x.mua.sl; save(); sync('nlBuy', { id: x.id, qc: x.mua.qc, gia: x.mua.gia, sl: x.mua.sl }); render(); return; }
   if (t.id === 'shiptt') { var os = S.orders.find(function (x) { return x.ma === t.dataset.ma; }), sv = Math.max(0, Math.round(+t.value || 0)); if (!os) return; os.shipTra = sv; os.shipThat = true; os.log.push({ t: stamp(), v: 'Nhập ship thực tế · ' + money(sv) }); save(); sync('orderShip', { ma: os.ma, tien: sv }); render(); orderDrawer(os.ma); toast(os.ma + ': ship thực tế ' + money(sv)); return; }
+  if (t.dataset.pe && t.dataset.pe.indexOf('vib|') === 0) { peInit(); var vi0 = +t.dataset.pe.split('|')[1], vv0 = VI[vi0]; if (!vv0) return;
+    vv0.ban = t.checked; PE.vi[vi0].ban = t.checked; save(); render();
+    sync('priceSave', { vi: [{ ten: vv0.ten, ban: vv0.ban }] }).then(function () { toast(vv0.ten + (vv0.ban ? ': mở bán lại trên web' : ': web hiện "Tạm hết", khách không đặt được')); }).catch(function () {});
+    return; }
   if (t.dataset.pe) { peInit(); var q = t.dataset.pe.split('|'), val = Math.max(0, Math.round(+t.value || 0));
     if (q[0] === 'g') PE.gia[q[1]][q[2]] = val; else if (q[0] === 'mix') PE.mix = val; else if (q[0] === 'cb') PE.combos[+q[1]][q[2]] = val; else if (q[0] === 'cbf') PE.combos[+q[1]].freeship = t.checked; else if (q[0] === 'cbb') PE.combos[+q[1]].ban = t.checked; else if (q[0] === 'vib') PE.vi[+q[1]].ban = t.checked;
     render(); return; }
   if (t.dataset.ceall && CE) { var ck = t.dataset.ceall; CE.all[ck] = t.checked; CE.touched = 1; if (t.checked) { var cv = CE.vi[CE.i][ck]; CE.vi.forEach(function (y) { y[ck] = cv; }); } ceMark(); return; }
   if (t.dataset.khac) { CFG.khac = Math.max(0, parseFloat(t.value) || 0); save(); sync('recipe', { khac: CFG.khac }); render(); return; }
+  if (t.id === 'l-cot') { var lc = cotOf(t.value), ll = $('#l-loai'); if (lc && ll) ll.value = lc.sua; return; }
+  if (t.dataset.cotsua !== undefined) { var cs = COT[+t.dataset.cotsua]; if (!nl(t.value)) return; cs.sua = t.value; save(); sync('recipe', { cot: [{ ten: cs.ten, litKg: cs.litKg, menL: cs.menL, sua: cs.sua }] }); render(); toast('Cốt ' + cs.ten + ': sữa chính là ' + nl(cs.sua).ten); return; }
   if (t.dataset.cot !== undefined) { var v = parseFloat(t.value); if (v >= 0) COT[+t.dataset.cot][t.dataset.k] = v; save(); var cc = COT[+t.dataset.cot]; sync('recipe', { cot: [{ ten: cc.ten, litKg: cc.litKg, menL: cc.menL }] }); render(); return; }
   if (t.dataset.vi !== undefined) { var w = parseFloat(t.value); if (w >= 0) VI[+t.dataset.vi][t.dataset.k] = w; save(); var vv = VI[+t.dataset.vi]; sync('recipe', { vi: [{ ten: vv.ten, cpv: vv.cpv }] }); render(); return; }
 });
@@ -1252,12 +1264,14 @@ function createOrder() {
 function saveLot() {
   var cot = $('#l-cot').value, c = cotOf(cot), sua = parseFloat($('#l-sua').value), tp = parseFloat($('#l-tp').value), ngay = $('#l-ngay').value || iso(TODAY);
   if (!(sua > 0) || !(tp > 0)) { toast('Nhập lượng sữa và thành phẩm'); return; }
-  var von = sua * nl(c.sua).gia + sua * c.menL * nl('men').gia, ma = 'L' + ngay.slice(8, 10) + ngay.slice(5, 7) + '-' + cot.toUpperCase();
+  var mid = ($('#l-loai') && $('#l-loai').value) || c.sua, ms = nl(mid) || nl(c.sua); mid = ms.id;
+  var von = sua * ms.gia + sua * c.menL * nl('men').gia, ma = 'L' + ngay.slice(8, 10) + ngay.slice(5, 7) + '-' + cot.toUpperCase();
   if (S.lots.some(function (l) { return l.ma === ma; })) ma += '-' + (S.lots.filter(function (l) { return l.ma.indexOf(ma) === 0; }).length + 1);
-  S.lots.push({ ma: ma, ngay: ngay, cot: cot, sua: sua, tp: tp, von: Math.round(von), hsd: iso(addD(pd(ngay), CFG.hsd)), ghichu: $('#l-gc').value });
-  nl(c.sua).ton = Math.max(0, nl(c.sua).ton - sua); nl('men').ton = Math.max(0, nl('men').ton - sua * c.menL);
-  S.hist.push({ t: stamp(), loai: 'Xuất SX', nl: c.sua, sl: sua, gia: nl(c.sua).gia, ghi: 'Mẻ ' + ma });
-  var L = S.lots[S.lots.length - 1]; sync('lotAdd', { lot: { ma: L.ma, ngay: L.ngay, cot: c.ten, sua: L.sua, tp: L.tp, von: L.von, hsd: L.hsd, ghichu: L.ghichu }, use: [{ id: c.sua, sl: sua, gia: nl(c.sua).gia }, { id: 'men', sl: sua * c.menL, gia: nl('men').gia }] });
+  var gcl = $('#l-gc').value.trim(); if (mid !== c.sua || suaList().length > 2) gcl = 'Sữa: ' + ms.ten + (gcl ? ' · ' + gcl : '');
+  S.lots.push({ ma: ma, ngay: ngay, cot: cot, sua: sua, tp: tp, von: Math.round(von), hsd: iso(addD(pd(ngay), CFG.hsd)), ghichu: gcl });
+  ms.ton = Math.max(0, ms.ton - sua); nl('men').ton = Math.max(0, nl('men').ton - sua * c.menL);
+  S.hist.push({ t: stamp(), loai: 'Xuất SX', nl: mid, sl: sua, gia: ms.gia, ghi: 'Mẻ ' + ma });
+  var L = S.lots[S.lots.length - 1]; sync('lotAdd', { lot: { ma: L.ma, ngay: L.ngay, cot: c.ten, sua: L.sua, tp: L.tp, von: L.von, hsd: L.hsd, ghichu: L.ghichu }, use: [{ id: mid, sl: sua, gia: ms.gia }, { id: 'men', sl: sua * c.menL, gia: nl('men').gia }] });
   save(); closeDrawer(); render(); toast('Đã lưu mẻ ' + ma + ' · ' + Math.round(tp / sua) + ' g/lít');
 }
 /* Menu trên điện thoại: mở/đóng, chạm ra ngoài hoặc bấm Esc để đóng */

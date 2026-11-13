@@ -436,6 +436,21 @@ button.lk{border:0;background:none;color:var(--berry);text-decoration:underline;
   .cots-hint{display:block!important}
 }
 .cots-hint{display:none;font-size:13px;color:var(--muted);text-align:right;margin-top:6px}
+/* tạm hết */
+.vcard.het .img img,.gal .main.het img{filter:grayscale(.85);opacity:.6}
+.hetb{position:absolute;left:10px;top:10px;background:var(--ink);color:#fff;font:700 12px var(--body);padding:4px 10px;border-radius:999px;z-index:2}
+.vcard .img{position:relative}
+.vcard.het .price{color:var(--muted)}
+.vadd[disabled]{background:#C9B4B9;cursor:not-allowed}
+.btn[disabled]{opacity:.55;cursor:not-allowed}
+.chip.het{opacity:.5;text-decoration:line-through}
+.vt button[disabled]{opacity:.45;text-decoration:line-through;cursor:not-allowed}
+.set[disabled]{opacity:.45;cursor:not-allowed}
+.vlist li.het{opacity:.5;text-decoration:line-through}
+.hetmsg{background:var(--amber-s);color:#6B3E00;border-radius:12px;padding:10px 14px;font-size:14px;margin:0}
+.ci-off .th img{filter:grayscale(1);opacity:.6}
+.btn.is-off{opacity:.55;cursor:not-allowed}
+@media (max-width:900px){.hetb{left:6px;top:6px;font-size:11px;padding:2px 8px}}
 /* sticker cô bé Mướt */
 .stk{display:block;height:auto;filter:drop-shadow(0 6px 10px rgba(74,31,43,.12));pointer-events:none;user-select:none}
 .stk.pop{animation:stkpop .6s cubic-bezier(.2,1.5,.4,1) both}
