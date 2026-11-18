@@ -613,6 +613,21 @@
     var lastY = scrollY, shopIn = false, tick = false;
     var bbShow = function (on) { bb.classList.toggle('off', !on); };
     var bbCart = function () { var n = totals().hu; if (!n) return; bb.querySelector('[data-bb="t"]').textContent = 'Giỏ: ' + n + ' hũ'; bb.querySelector('[data-bb="s"]').textContent = 'Chọn giờ nhận'; var a = bb.querySelector('[data-bb="a"]'); a.textContent = 'Xem giỏ'; a.href = '/gio-hang/'; };
+    // còn giao hôm nay không? (theo khung giờ + "Khoá khung giờ trước" trong Sheet)
+    var bbTime = function () {
+      if (totals().hu) return;
+      var ds = buildDays('Giao'), t = bb.querySelector('[data-bb="t"]'), sb = bb.querySelector('[data-bb="s"]'), gia = sb.dataset.gia || '';
+      var hh = function (m) { var h = Math.floor(m / 60), mm = m % 60; return h + 'h' + (mm ? String(mm).padStart(2, '0') : ''); };
+      if (ds[0] && ds[0].ok) {
+        var last = 0; D.khung.forEach(function (x) { if (!x.giao) return; var m = x.gio.match(/(\d{1,2}):(\d{2})(?:\D+(\d{1,2}):(\d{2}))?/); if (m) last = Math.max(last, m[3] ? +m[3] * 60 + +m[4] : +m[1] * 60 + +m[2] + 120); });
+        t.innerHTML = '<i class="bbar-dot" aria-hidden="true"></i>Giao hôm nay'; sb.textContent = 'Đặt trước ' + hh(last - (D.khoaPhut || 0)) + (gia ? ' · từ ' + gia : '');
+      } else {
+        var n = ds.filter(function (d) { return d.ok; })[0];
+        t.textContent = n ? 'Giao ' + n.top.toLowerCase().replace(/^thứ/, 'Thứ').replace(/^chủ/, 'Chủ') : 'Sữa chua Hy Lạp';
+        sb.textContent = 'Giữ hũ trước' + (gia ? ' · từ ' + gia : '');
+      }
+    };
+    try { onData(bbTime); setInterval(bbTime, 60000); } catch (x) {}
     bbCart();
     var shop = document.querySelector('.bp-shop');
     if (shop && 'IntersectionObserver' in window) new IntersectionObserver(function (es) { shopIn = es[0].isIntersecting; if (shopIn) bbShow(false); }).observe(shop);
