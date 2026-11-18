@@ -1,0 +1,33 @@
+# Góc Mướt: đăng bài hẹn giờ. Mỗi sáng 7:07 (giờ VN) bung gói _hen-gio/<ngày>.zip đã đến hạn.
+# Chạy cả sau mỗi lần Push. Chỉ bung gói mới hơn bản đang có (goc-muot/.asof) và có trong LIST.txt, nên không đè bài mới bằng bản cũ.
+name: Dang bai Goc Muot
+on:
+  schedule:
+    - cron: '7 0 * * *'
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+concurrency: dang-bai
+jobs:
+  dang-bai:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dua bai den han len web
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          today=$(TZ=Asia/Ho_Chi_Minh date +%F)
+          cur=$(cat goc-muot/.asof 2>/dev/null || echo 0000-00-00)
+          [ -f _hen-gio/LIST.txt ] || { echo "Chưa có bài hẹn giờ"; exit 0; }
+          d=$(awk -v t="$today" -v c="$cur" '$0>c && $0<=t' _hen-gio/LIST.txt | sort | tail -1)
+          if [ -z "$d" ] || [ ! -f "_hen-gio/$d.zip" ]; then echo "Không có bài mới đến hạn (đang ở $cur)"; exit 0; fi
+          unzip -oq "_hen-gio/$d.zip" -d .
+          git add -A goc-muot img/og sitemap.xml
+          if git diff --cached --quiet; then echo "Web đã đúng lịch $d"; exit 0; fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "Đăng bài Góc Mướt ($d)"
+          git push
+          gh api -X POST "repos/$GITHUB_REPOSITORY/pages/builds" >/dev/null || true

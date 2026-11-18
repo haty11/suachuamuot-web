@@ -589,6 +589,35 @@
     step(false, ''); poll();
   }
 
+  // Góc Mướt: lọc chủ đề + mục lục đang đọc
+  var bch = $$('[data-bcat]');
+  if (bch.length) {
+    var setCat = function (c) {
+      bch.forEach(function (b) { var on = b.dataset.bcat === c; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+      $$('.bc[data-cat]').forEach(function (a) { a.hidden = !!c && a.dataset.cat !== c; });
+    };
+    bch.forEach(function (b) { b.addEventListener('click', function () { setCat(b.dataset.bcat); }); });
+    var hc = location.hash.slice(1); if (hc && bch.some(function (b) { return b.dataset.bcat === hc; })) setCat(hc);
+  }
+  var tocA = $$('.bp-toc a');
+  if (tocA.length && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) { es.forEach(function (x) { if (x.isIntersecting) tocA.forEach(function (a) { a.classList.toggle('on', a.getAttribute('href') === '#' + x.target.id); }); }); }, { rootMargin: '-20% 0px -70% 0px' });
+    $$('.prose h2[id]').forEach(function (h) { io.observe(h); });
+  }
+  $$('.bp-tocm a').forEach(function (a) { a.addEventListener('click', function () { var d = a.closest('details'); if (d) d.open = false; }); });
+
+  // Khách nói gì: bấm ảnh để phóng to
+  var kd = document.querySelector('.kn-dlg');
+  if (kd && kd.showModal) {
+    var kback = null;
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('[data-kn]');
+      if (b) { kback = b; kd.querySelector('img').src = b.getAttribute('data-kn'); kd.showModal(); return; }
+      if (e.target === kd || (e.target.closest && e.target.closest('.kn-x'))) kd.close();
+    });
+    kd.addEventListener('close', function () { if (kback) kback.focus(); });
+  }
+
   badge();
   window.MMM = { cart: cart, totals: totals, priceItem: priceItem, data: function () { return D; } };
 })();
