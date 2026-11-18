@@ -606,6 +606,29 @@
   }
   $$('.bp-tocm a').forEach(function (a) { a.addEventListener('click', function () { var d = a.closest('details'); if (d) d.open = false; }); });
 
+  // Thanh nổi nhỏ (trang nội dung): cuộn lên → hiện, cuộn xuống → ẩn; ẩn ở đầu trang và khi khối mua hàng đang hiện
+  var bb = document.querySelector('[data-bbar]');
+  if (bb) {
+    var bbOff = false; try { bbOff = sessionStorage.getItem('mmm-bbar') === '0'; } catch (x) {}
+    var lastY = scrollY, shopIn = false, tick = false;
+    var bbShow = function (on) { bb.classList.toggle('off', !on); };
+    var bbCart = function () { var n = totals().hu; if (!n) return; bb.querySelector('[data-bb="t"]').textContent = 'Giỏ: ' + n + ' hũ'; bb.querySelector('[data-bb="s"]').textContent = 'Chọn giờ nhận'; var a = bb.querySelector('[data-bb="a"]'); a.textContent = 'Xem giỏ'; a.href = '/gio-hang/'; };
+    bbCart();
+    var shop = document.querySelector('.bp-shop');
+    if (shop && 'IntersectionObserver' in window) new IntersectionObserver(function (es) { shopIn = es[0].isIntersecting; if (shopIn) bbShow(false); }).observe(shop);
+    addEventListener('scroll', function () {
+      if (tick || bbOff) return; tick = true;
+      requestAnimationFrame(function () {
+        var y = scrollY, d = y - lastY;
+        if (y < 300 || shopIn) bbShow(false);
+        else if (d < -6) bbShow(true);
+        else if (d > 6) bbShow(false);
+        lastY = y; tick = false;
+      });
+    }, { passive: true });
+    bb.querySelector('[data-bbar-x]').addEventListener('click', function () { bbOff = true; bbShow(false); try { sessionStorage.setItem('mmm-bbar', '0'); } catch (x) {} });
+  }
+
   // Khách nói gì: bấm ảnh để phóng to
   var kd = document.querySelector('.kn-dlg');
   if (kd && kd.showModal) {
