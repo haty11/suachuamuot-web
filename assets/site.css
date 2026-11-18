@@ -611,3 +611,11 @@ button.lk{border:0;background:none;color:var(--berry);text-decoration:underline;
 .td dd{margin:6px 0 0;color:var(--ink)}
 .td-more{display:block;margin-top:6px;font-size:15px;font-style:italic}
 @media (max-width:900px){.td-nav{top:72px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.td-nav .chip{flex:none}.td-g h2{font-size:24px}.td dt{font-size:18px}}
+/* Cho văn phòng */
+.vp{display:grid;grid-template-columns:1.25fr 1fr;gap:48px;align-items:center}
+.vp-l{list-style:none;padding:0;margin:22px 0 26px;display:flex;flex-direction:column;gap:12px}
+.vp-l li{display:flex;gap:10px;align-items:flex-start}.vp-l svg{flex:none;margin-top:6px;color:var(--green)}
+.vp .ctas{display:flex;gap:12px;flex-wrap:wrap}
+.vp-ex{padding:28px}.vp-ex .line{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.vp-ex .line:last-of-type{border-bottom:0;font-size:19px}.vp-ex .note{margin-top:10px}
+@media (max-width:900px){.vp{grid-template-columns:1fr;gap:28px}.vp .ctas .btn{width:100%}}
