@@ -604,6 +604,20 @@
     var io = new IntersectionObserver(function (es) { es.forEach(function (x) { if (x.isIntersecting) tocA.forEach(function (a) { a.classList.toggle('on', a.getAttribute('href') === '#' + x.target.id); }); }); }, { rootMargin: '-20% 0px -70% 0px' });
     $$('.prose h2[id]').forEach(function (h) { io.observe(h); });
   }
+  // Góc Mướt: tô sáng mục chủ đề đang xem
+  var bnav = $$('.bl-navi a');
+  if (bnav.length && 'IntersectionObserver' in window) {
+    var bio = new IntersectionObserver(function (es) { es.forEach(function (x) { if (!x.isIntersecting) return; bnav.forEach(function (a) { var on = a.getAttribute('href') === '#' + x.target.id; a.classList.toggle('on', on); if (on && a.scrollIntoView) a.parentNode.scrollTo({ left: a.offsetLeft - 16, behavior: 'smooth' }); }); }); }, { rootMargin: '-30% 0px -60% 0px' });
+    $$('.bl-sec[id]').forEach(function (s) { bio.observe(s); });
+  }
+  // Chia sẻ bài viết
+  var shn = document.querySelector('[data-share="native"]');
+  if (shn && navigator.share) { shn.hidden = false; shn.addEventListener('click', function () { navigator.share({ title: shn.dataset.title, url: shn.dataset.url }).catch(function () {}); }); }
+  var shc = document.querySelector('[data-share="copy"]');
+  if (shc) shc.addEventListener('click', function () {
+    var u = shc.dataset.url, done = function () { shc.textContent = 'Đã sao chép ✓'; setTimeout(function () { shc.textContent = 'Sao chép link'; }, 2000); };
+    if (navigator.clipboard) navigator.clipboard.writeText(u).then(done, function () { prompt('Sao chép link:', u); }); else prompt('Sao chép link:', u);
+  });
   $$('.bp-tocm a').forEach(function (a) { a.addEventListener('click', function () { var d = a.closest('details'); if (d) d.open = false; }); });
 
   // Thanh nổi nhỏ (trang nội dung): cuộn lên → hiện, cuộn xuống → ẩn; ẩn ở đầu trang và khi khối mua hàng đang hiện
