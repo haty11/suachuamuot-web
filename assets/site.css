@@ -688,3 +688,14 @@ body:has(.gl:hover) .bbar,body:has(.gl.on) .bbar{transform:translateY(calc(100% 
 .tl-s{margin-top:44px}.tl-s h2{font-size:28px;margin-bottom:14px}.tl-s p+p{margin-top:10px}
 .bl-tool{background:#fff;border-color:var(--line)}
 @media (max-width:600px){.tl-eq{grid-template-columns:1fr}.tl-big b{font-size:42px}.tl-r .row .btn{width:100%}}
+
+/* nguồn tham khảo: chữ nhỏ, gập */
+.bp-src{margin-top:40px;padding-top:18px;border-top:1px solid var(--line,#eadfd8)}
+.bp-src h2{font-size:16px!important;margin-bottom:8px!important;letter-spacing:.02em}
+.bp-src ol{padding-left:20px;font-size:13px;line-height:1.5;color:var(--muted,#7a6a68);margin:0}
+.bp-src li+li{margin-top:4px}.bp-src a{color:inherit;text-decoration:underline;text-underline-offset:2px;word-break:break-word}
+.bp-src .note{margin-top:10px;font-size:12px}
+.src-more{margin-top:4px}.src-more summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--berry);padding:6px 0;list-style:none;display:inline-flex;align-items:center;gap:6px}
+.src-more summary::-webkit-details-marker{display:none}.src-more summary::after{content:"▾";transition:transform .2s}
+.src-more[open] summary::after{transform:rotate(180deg)}.src-more[open] summary{margin-bottom:4px}
+.src-more .sm-c,.src-more[open] .sm-o{display:none}.src-more[open] .sm-c{display:inline}
