@@ -610,6 +610,18 @@
     var bio = new IntersectionObserver(function (es) { es.forEach(function (x) { if (!x.isIntersecting) return; bnav.forEach(function (a) { var on = a.getAttribute('href') === '#' + x.target.id; a.classList.toggle('on', on); if (on && a.scrollIntoView) a.parentNode.scrollTo({ left: a.offsetLeft - 16, behavior: 'smooth' }); }); }); }, { rootMargin: '-30% 0px -60% 0px' });
     $$('.bl-sec[id]').forEach(function (s) { bio.observe(s); });
   }
+  // Thẻ thuật ngữ: đánh dấu body khi đang mở để ẩn thanh nổi (trình duyệt cũ không có :has)
+  if (document.querySelector('.gl')) {
+    document.addEventListener('focusin', function (e) { if (e.target.closest && e.target.closest('.gl')) document.body.classList.add('gl-open'); });
+    // iPhone (Safari) không focus nút khi chạm → tự bật/tắt bằng click
+    document.addEventListener('click', function (e) {
+      var g = e.target.closest && e.target.closest('.gl'), b = e.target.closest && e.target.closest('.gl-b');
+      $$('.gl.on').forEach(function (x) { if (x !== g) x.classList.remove('on'); });
+      if (b) { g.classList.toggle('on'); }
+      document.body.classList.toggle('gl-open', !!document.querySelector('.gl.on'));
+    });
+    document.addEventListener('focusout', function () { setTimeout(function () { if (!(document.activeElement && document.activeElement.closest && document.activeElement.closest('.gl'))) document.body.classList.remove('gl-open'); }, 0); });
+  }
   // Chia sẻ bài viết
   var shn = document.querySelector('[data-share="native"]');
   if (shn && navigator.share) { shn.hidden = false; shn.addEventListener('click', function () { navigator.share({ title: shn.dataset.title, url: shn.dataset.url }).catch(function () {}); }); }

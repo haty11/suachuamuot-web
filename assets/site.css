@@ -663,3 +663,9 @@ button.lk{border:0;background:none;color:var(--berry);text-decoration:underline;
 }
 @media (min-width:901px){.bl-navi{flex-wrap:wrap;overflow:visible}}
 @media (max-width:600px){.bl-sec:not(#bat-dau) .bcs .bc-cat{display:none}}
+/* thẻ thuật ngữ đang mở → ẩn thanh nổi, thẻ nằm trên cùng */
+.gl-t{z-index:60}
+body.gl-open .bbar,body:has(.gl:focus-within) .bbar{transform:translateY(calc(100% + 28px));opacity:0;visibility:hidden}
+@media (max-width:600px){.gl-t{bottom:calc(16px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 30px rgba(46,16,26,.35);padding:14px 16px;font-size:15px}}
+.gl.on .gl-t{display:block}
+body:has(.gl:hover) .bbar,body:has(.gl.on) .bbar{transform:translateY(calc(100% + 28px));opacity:0;visibility:hidden}
