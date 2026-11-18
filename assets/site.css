@@ -669,3 +669,22 @@ body.gl-open .bbar,body:has(.gl:focus-within) .bbar{transform:translateY(calc(10
 @media (max-width:600px){.gl-t{bottom:calc(16px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 30px rgba(46,16,26,.35);padding:14px 16px;font-size:15px}}
 .gl.on .gl-t{display:block}
 body:has(.gl:hover) .bbar,body:has(.gl.on) .bbar{transform:translateY(calc(100% + 28px));opacity:0;visibility:hidden}
+/* Công cụ tính protein */
+.tl{max-width:900px;padding-bottom:72px}.tl h1{margin-top:8px}
+.tl-f{padding:24px;margin-top:28px;display:flex;flex-direction:column;gap:20px}
+.tl-row{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.tl-row>label,.tl-row legend{font-weight:600}
+.tl-kg{display:flex;align-items:center;gap:10px}.tl-kg .inp{max-width:160px;font-size:20px;font-weight:600}
+.tl-o{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1.5px solid var(--line2);border-radius:14px;cursor:pointer;margin-top:8px}
+.tl-o input{margin-top:5px;accent-color:var(--berry);width:18px;height:18px}.tl-o span{display:flex;flex-direction:column}.tl-o small{color:var(--muted);font-size:14px}
+.tl-o:has(input:checked){border-color:var(--berry);background:var(--berry-s)}
+#tl-n{max-width:160px}
+.tl-r{padding:26px;margin-top:18px;background:var(--paper)}
+.tl-big{display:flex;flex-direction:column}.tl-big small{color:var(--muted)}.tl-big b{font:800 52px/1.1 var(--display);color:var(--berry)}
+.tl-sub{display:flex;gap:28px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}.tl-sub small{display:block;color:var(--muted);font-size:14px}.tl-sub b{font:700 26px var(--display)}
+.tl-h{margin-top:18px;font-weight:600}
+.tl-eq{list-style:none;padding:0;margin:8px 0 14px;display:grid;grid-template-columns:1fr 1fr;gap:6px 18px}.tl-eq small{color:var(--muted)}
+.tl-r .row{margin-top:14px}
+.tl-s{margin-top:44px}.tl-s h2{font-size:28px;margin-bottom:14px}.tl-s p+p{margin-top:10px}
+.bl-tool{background:#fff;border-color:var(--line)}
+@media (max-width:600px){.tl-eq{grid-template-columns:1fr}.tl-big b{font-size:42px}.tl-r .row .btn{width:100%}}
