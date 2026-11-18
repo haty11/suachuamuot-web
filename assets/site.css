@@ -699,3 +699,14 @@ body:has(.gl:hover) .bbar,body:has(.gl.on) .bbar{transform:translateY(calc(100% 
 .src-more summary::-webkit-details-marker{display:none}.src-more summary::after{content:"▾";transition:transform .2s}
 .src-more[open] summary::after{transform:rotate(180deg)}.src-more[open] summary{margin-bottom:4px}
 .src-more .sm-c,.src-more[open] .sm-o{display:none}.src-more[open] .sm-c{display:inline}
+
+/* Góc Mướt: mỗi chuyên mục hiện vài bài, bấm để xem hết */
+.bl-sec.clip:not(.open) .bcs>.bc:nth-child(n+7){display:none}
+.bl-sec:not(.clip) .bl-more,.bl-more .bm-c,.bl-sec.open .bl-more .bm-o{display:none}
+.bl-sec.open .bl-more .bm-c{display:inline}
+.bl-more{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:16px;padding:12px 16px;border:1px solid var(--line2);border-radius:999px;background:#fff;color:var(--berry);font:600 15px/1.2 var(--body);cursor:pointer}
+.bl-more::after{content:"▾";transition:transform .2s}.bl-sec.open .bl-more::after{transform:rotate(180deg)}
+.bl-more:hover{border-color:var(--berry)}
+@media (max-width:900px){.bl-sec.clip:not(.open) .bcs>.bc:nth-child(n+5){display:none}}
+@media (max-width:600px){.bl-sec.clip:not(.open) .bcs>.bc:nth-child(n+4){display:none}}
+@media (min-width:601px){.bl-sec.le4 .bl-more{display:none}}@media (min-width:901px){.bl-sec.le6 .bl-more{display:none}}

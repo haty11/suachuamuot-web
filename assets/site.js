@@ -685,3 +685,6 @@
   badge();
   window.MMM = { cart: cart, totals: totals, priceItem: priceItem, data: function () { return D; } };
 })();
+
+/* Góc Mướt: xem tất cả / thu gọn bài trong chuyên mục */
+document.querySelectorAll('.bl-more').forEach(function(b){b.addEventListener('click',function(){var s=b.closest('.bl-sec');var o=s.classList.toggle('open');b.setAttribute('aria-expanded',o);if(!o){var h=s.querySelector('.bl-sh');if(h&&h.getBoundingClientRect().top<0)s.scrollIntoView({behavior:'smooth',block:'start'});}});});
